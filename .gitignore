@@ -1,0 +1,22 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Per-run job artifacts & generated audio (large, regenerated each run)
+web/jobs/
+*.m4b
+*.m4a
+
+# CLI scratch / generated output dirs (regenerated on demand)
+rezero-v23/
+
+# scratch / temp
+.testjob
+test_*.wav
+test_*.m4a
+sample.mp3
+
+# OS
+Thumbs.db
+.DS_Store
