@@ -17,6 +17,10 @@ test_*.wav
 test_*.m4a
 sample.mp3
 
+# stray sample/test artifacts (keep only samples/voices/ — the preview clips)
+samples/out/
+samples/*.jpg
+
 # OS
 Thumbs.db
 .DS_Store
