@@ -1,5 +1,7 @@
 # Audiobook Maker - Project Memory & State
 
+> **Shared project log.** Both Claude and Antigravity read and update this file. See `AGENTS.md` for the working agreement (layout, runtime, git rules). Keep this current after meaningful changes.
+
 ## Current Project Status
 The Audiobook Maker is currently fully functional and running as a 24/7 background service on the host machine. The application automatically starts silently when the PC is booted. 
 
@@ -27,9 +29,8 @@ The Audiobook Maker is currently fully functional and running as a 24/7 backgrou
    - Created `web/stop-audiobook-server.bat` as a utility tool to forcefully kill the hidden background Python server if needed.
 
 ## Key Files & Architecture
-- `web/app.py`: The FastAPI server containing the routing, job queuing, file handling, and HTML templates (including all the new CSS and Javascript for the frontend).
-- `web/worker.py`: Background thread processor that monitors the job queue, updates statuses, and executes the pipeline.
-- `web/pipeline.py`: Coordinates the FFmpeg processing, OCR parsing, and interacts with the external Kokoro TTS API.
+- `web/app.py`: The FastAPI server — routing, job queuing, file handling, the background **worker thread (inline in this file — there is no separate `worker.py`)**, and all the HTML/CSS/JS for the frontend.
+- `web/pipeline.py`: Coordinates OCR parsing, FFmpeg muxing, and runs **Kokoro TTS in-process (local, not an external API)**.
 - `web/start-audiobook-server.bat`: The standard batch script to launch the server (runs Uvicorn on `0.0.0.0:8765`).
 - `web/run-background.vbs`: A VBScript wrapper that executes the batch file completely hidden in the background.
 
