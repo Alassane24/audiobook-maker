@@ -637,15 +637,15 @@ def job_page(jid: str):
   <div style="position:absolute; top:50%; left:0; right:0; height:2px; background:var(--border); z-index:0; transform:translateY(-50%);"></div>
   <div id="track-line" style="position:absolute; top:50%; left:0; width:0%; height:2px; background:var(--primary); z-index:0; transform:translateY(-50%); transition:width 0.5s;"></div>
   
-  <div class="step-dot" id="dot-ocr" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Extract</div>
+  <div class="step-dot" id="dot-ocr" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Reading</div>
   <div class="step-dot" id="dot-tts" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Narrating</div>
-  <div class="step-dot" id="dot-mux" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Packaging</div>
+  <div class="step-dot" id="dot-mux" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Finishing</div>
  </div>
 
  <div id="msg" style="font-size:16px; font-weight:600; color:#f8fafc; margin-bottom:12px; text-align:center;">Loading...</div>
  <div class="bar" style="height:12px; border-radius:6px; overflow:hidden; background:#334155;"><div class="fill" id="fill" style="height:100%; transition:width 0.5s;"></div></div>
  <div style="display:flex; justify-content:space-between; margin-top:12px; font-size:13px; color:#94a3b8; font-weight:600;">
-  <span id="mode" style="text-transform:uppercase; letter-spacing:0.5px;"></span>
+  <span id="mode" style="text-transform:none; letter-spacing:0.2px;"></span>
   <span id="pct" style="color:#f8fafc;">0%</span>
  </div>
 </div>
@@ -690,7 +690,7 @@ async function poll(){
   document.getElementById('msg').textContent = j.message || j.status;
   document.getElementById('fill').style.width = Math.round((j.frac||0)*100)+'%';
   document.getElementById('pct').innerText=Math.round((j.frac||0)*100)+'%';
-  document.getElementById('mode').innerText='Mode: '+(j.mode||'');
+  document.getElementById('mode').innerText = (j.mode==='ocr') ? 'Reading scanned pages' : ((j.mode==='text') ? 'Reading the text' : '');
  
  if(j.status === 'paused') {
    document.getElementById('btn-pause').style.display = 'none';
@@ -726,7 +726,7 @@ async function poll(){
  document.getElementById('track-line').style.width = w + '%';
 
   if(j.status==='done'){
-    let sub = (j.mode? ('Mode: '+j.mode+'  ') : '') + (j.phase? ('· '+j.phase) : '');
+    let sub = '';
     document.getElementById('sub').textContent = sub;
     let mins = j.minutes || 0;
     let html = '<p class="ok" style="margin:0 0 16px; padding:12px 16px; border-radius:12px; display:flex; align-items:center; gap:8px; background:var(--primary-hover); color:var(--primary); border:1px solid var(--border);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Finished ('+(mins/60).toFixed(1)+' h)</p>';
