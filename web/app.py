@@ -651,11 +651,11 @@ def job_page(jid: str):
   <div class="step-dot" id="dot-mux" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Finishing</div>
  </div>
 
- <div id="msg" style="font-size:16px; font-weight:600; color:#f8fafc; margin-bottom:12px; text-align:center;">Loading...</div>
- <div class="bar" style="height:12px; border-radius:6px; overflow:hidden; background:#334155;"><div class="fill" id="fill" style="height:100%; transition:width 0.5s;"></div></div>
- <div style="display:flex; justify-content:space-between; margin-top:12px; font-size:13px; color:#94a3b8; font-weight:600;">
+ <div id="msg" style="font-size:16px; font-weight:600; color:var(--text); margin-bottom:12px; text-align:center;">Loading...</div>
+ <div class="bar" style="height:12px; border-radius:6px; overflow:hidden; background:var(--play-bg); border:1px solid var(--border);"><div class="fill" id="fill" style="height:100%; transition:width 0.5s;"></div></div>
+ <div style="display:flex; justify-content:space-between; margin-top:12px; font-size:13px; color:var(--text-muted); font-weight:600;">
   <span id="mode" style="text-transform:none; letter-spacing:0.2px;"></span>
-  <span id="pct" style="color:#f8fafc;">0%</span>
+  <span id="pct" style="color:var(--text);">0%</span>
  </div>
 </div>
  <div class="muted" id="sub"></div>
@@ -756,7 +756,7 @@ async function poll(){
         j.chapters_info.forEach(function(ch) {
             let m = Math.floor(ch.start / 60), s = Math.floor(ch.start % 60);
             let timeStr = (m < 60) ? (m + ':' + (s<10?'0':'')+s) : (Math.floor(m/60) + ':' + ((m%60)<10?'0':'')+(m%60) + ':' + (s<10?'0':'')+s);
-            html += '<div class="ch-row" style="padding:14px 18px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; gap:16px; align-items:center; transition:background 0.2s;" onclick="document.getElementById(&#39;player&#39;).currentTime=' + ch.start + '; document.getElementById(&#39;player&#39;).play(); document.getElementById(&#39;playBtn&#39;).innerHTML=I_PAUSE; document.getElementById(&#39;playBtn&#39;).style.paddingLeft=&#39;0&#39;;" onmouseover="this.style.background=&#39;rgba(255,255,255,0.05)&#39;" onmouseout="this.style.background=&#39;&#39;"><span style="color:var(--primary); font-family:ui-monospace,monospace; font-weight:700; font-size:13px; min-width:48px;">' + timeStr + '</span><span style="font-size:14px; color:#e2e8f0; font-weight:500; line-height:1.4;">' + ch.title + '</span></div>';
+            html += '<div class="ch-row" style="padding:14px 18px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; gap:16px; align-items:center; transition:background 0.2s;" onclick="document.getElementById(&#39;player&#39;).currentTime=' + ch.start + '; document.getElementById(&#39;player&#39;).play(); document.getElementById(&#39;playBtn&#39;).innerHTML=I_PAUSE; document.getElementById(&#39;playBtn&#39;).style.paddingLeft=&#39;0&#39;;" onmouseover="this.style.background=&#39;rgba(255,255,255,0.05)&#39;" onmouseout="this.style.background=&#39;&#39;"><span style="color:var(--primary); font-family:ui-monospace,monospace; font-weight:700; font-size:13px; min-width:48px;">' + timeStr + '</span><span style="font-size:14px; color:var(--text); font-weight:500; line-height:1.4;">' + ch.title + '</span></div>';
         });
         html += '</div>';
     }
