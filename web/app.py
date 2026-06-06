@@ -211,7 +211,8 @@ PAGE_CSS = """
   .card:nth-of-type(1) { animation-delay: 0.2s; }
   .card:nth-of-type(2) { animation-delay: 0.3s; }
   .card:nth-of-type(3) { animation-delay: 0.4s; }
-  .brand { display: flex; align-items: center; gap: 13px; margin-bottom: 6px; }
+  .brand { display: flex; align-items: center; gap: 13px; margin-bottom: 6px; text-decoration: none; color: inherit; cursor: pointer; width: fit-content; transition: opacity 0.2s ease; }
+  .brand:hover { opacity: 0.82; }
   .brand-icon { color: var(--primary); display: flex; align-items: center; filter: drop-shadow(0 0 10px var(--accent-glow)); }
   h1 { font-size: 34px; font-weight: 400; margin: 0; font-family: 'Marcellus', Georgia, serif; color: var(--text); letter-spacing: 0.01em; line-height: 1.05; }
   .sub { color: var(--text-muted); margin: 4px 0 36px; font-size: 16px; font-weight: 500; font-family: 'Jost', system-ui, sans-serif; }
@@ -389,7 +390,7 @@ def index():
 </script>
 </head><body>
 <div style="display:flex; justify-content:space-between; align-items:center;">
-  <div class="brand"><span class="brand-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9v6"/><path d="M9 5v14"/><path d="M14 8v8"/><path d="M19 6v12"/></svg></span><h1>Audiobook Maker</h1></div>
+  <a href="/" class="brand" aria-label="Audiobook Maker — back to home"><span class="brand-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9v6"/><path d="M9 5v14"/><path d="M14 8v8"/><path d="M19 6v12"/></svg></span><h1>Audiobook Maker</h1></a>
   <select class="theme-select" onchange="setT(this.value)">
     <option value="theme-dark">Dark</option>
     <option value="theme-light">Light</option>
@@ -624,7 +625,7 @@ def job_page(jid: str):
 </script>
 </head><body>
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-  <div class="brand"><span class="brand-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9v6"/><path d="M9 5v14"/><path d="M14 8v8"/><path d="M19 6v12"/></svg></span><h1>Audiobook Maker</h1></div>
+  <a href="/" class="brand" aria-label="Audiobook Maker — back to home"><span class="brand-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9v6"/><path d="M9 5v14"/><path d="M14 8v8"/><path d="M19 6v12"/></svg></span><h1>Audiobook Maker</h1></a>
   <select class="theme-select" onchange="setT(this.value)">
     <option value="theme-dark">Dark</option>
     <option value="theme-light">Light</option>
