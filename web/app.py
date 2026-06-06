@@ -142,28 +142,31 @@ threading.Thread(target=worker, daemon=True).start()
 # ----------------------------------------------------------------- pages
 PAGE_CSS = """
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,500&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
   * { box-sizing: border-box; }
+  /* ui-ux-pro-max recommendation for an AUDIO product (Podcast/Music match):
+     Style = Dark Mode (OLED) + Minimalism. Semantic tokens, deep indigo-black
+     surfaces, warm audio accent, 4pt rhythm, WCAG-AA contrast, minimal glow.
+     --on-primary = accessible text ON the accent fill (skill: "On Accent #0F172A"). */
   :root {
-    /* Warm literary / editorial — parchment & ink (default) */
-    --bg: #f4ead3; --card: #fcf8ec; --text: #2c261c; --text-muted: #8a7c62;
-    --primary: #a23a26; --primary-hover: rgba(162,58,38,0.07); --accent: #b58535;
-    --accent-glow: rgba(181,133,53,0.35); --border: #e0d3b4;
-    --bg-grad-1: rgba(162,58,38,0.06); --bg-grad-2: rgba(181,133,53,0.09); --play-bg: #f1e6cd;
-  }
-  .theme-light {
-    /* Bright parchment */
-    --bg: #f8f1e0; --card: #fffdf6; --text: #2c261c; --text-muted: #897c62;
-    --primary: #a23a26; --primary-hover: rgba(162,58,38,0.07); --accent: #b58535;
-    --accent-glow: rgba(181,133,53,0.3); --border: #e7dcc1;
-    --bg-grad-1: rgba(162,58,38,0.05); --bg-grad-2: rgba(181,133,53,0.06); --play-bg: #f4ecd7;
+    /* OLED audio — deep indigo-black + warm accent (default) */
+    --bg: #0f0f23; --card: #1b1b30; --text: #f8fafc; --text-muted: #94a3b8;
+    --primary: #f97316; --on-primary: #0f172a; --primary-hover: rgba(249,115,22,0.10); --accent: #6366f1;
+    --accent-glow: rgba(249,115,22,0.32); --border: rgba(255,255,255,0.08);
+    --bg-grad-1: rgba(99,102,241,0.13); --bg-grad-2: rgba(249,115,22,0.08); --play-bg: rgba(255,255,255,0.05);
   }
   .theme-dark {
-    /* Evening library — dark academia */
-    --bg: #211b13; --card: #2c241a; --text: #efe6d1; --text-muted: #b3a485;
-    --primary: #c25b3a; --primary-hover: rgba(194,91,58,0.14); --accent: #ca9a4e;
-    --accent-glow: rgba(202,154,78,0.4); --border: rgba(214,198,164,0.16);
-    --bg-grad-1: rgba(194,91,58,0.12); --bg-grad-2: rgba(202,154,78,0.1); --play-bg: rgba(214,198,164,0.07);
+    --bg: #0f0f23; --card: #1b1b30; --text: #f8fafc; --text-muted: #94a3b8;
+    --primary: #f97316; --on-primary: #0f172a; --primary-hover: rgba(249,115,22,0.10); --accent: #6366f1;
+    --accent-glow: rgba(249,115,22,0.32); --border: rgba(255,255,255,0.08);
+    --bg-grad-1: rgba(99,102,241,0.13); --bg-grad-2: rgba(249,115,22,0.08); --play-bg: rgba(255,255,255,0.05);
+  }
+  .theme-light {
+    /* Minimalism light variant (high-contrast, courtesy option) */
+    --bg: #f4f6fb; --card: #ffffff; --text: #0f0f23; --text-muted: #5b6678;
+    --primary: #ea580c; --on-primary: #ffffff; --primary-hover: rgba(234,88,12,0.08); --accent: #4f46e5;
+    --accent-glow: rgba(234,88,12,0.22); --border: #e3e8f0;
+    --bg-grad-1: rgba(79,70,229,0.05); --bg-grad-2: rgba(234,88,12,0.05); --play-bg: #eef2f8;
   }
   .theme-midnight {
     --bg: #020617; --card: rgba(15, 23, 42, 0.8); --text: #f1f5f9; --text-muted: #94a3b8;
@@ -185,7 +188,7 @@ PAGE_CSS = """
   }
 
   body {
-    font-family: 'Newsreader', Georgia, 'Times New Roman', serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     background: var(--bg);
     background-image: radial-gradient(circle at top right, var(--bg-grad-1) 0%, transparent 45%),
                       radial-gradient(circle at bottom left, var(--bg-grad-2) 0%, transparent 45%);
@@ -197,25 +200,25 @@ PAGE_CSS = """
     line-height: 1.65;
     transition: background 0.5s ease, color 0.5s ease;
   }
-  .brand { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; }
-  .brand-icon { font-size: 30px; filter: none; }
-  h1 { font-size: 40px; font-weight: 900; margin: 0; font-family: 'Fraunces', Georgia, serif; color: var(--text); letter-spacing: -0.02em; line-height: 1.05; }
-  .sub { color: var(--text-muted); margin: 4px 0 36px; font-size: 18px; font-style: italic; font-family: 'Newsreader', Georgia, serif; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-bottom: 6px; }
+  .brand-icon { color: var(--primary); display: flex; align-items: center; filter: drop-shadow(0 0 10px var(--accent-glow)); }
+  h1 { font-size: 30px; font-weight: 800; margin: 0; font-family: 'Inter', system-ui, sans-serif; color: var(--text); letter-spacing: -0.02em; line-height: 1.1; }
+  .sub { color: var(--text-muted); margin: 4px 0 36px; font-size: 16px; font-weight: 500; font-family: 'Inter', system-ui, sans-serif; }
   .card {
     background: var(--card);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: 14px;
     padding: 36px;
     margin: 24px 0;
     box-shadow: 0 1px 2px rgba(74,56,30,0.08), 0 18px 40px -20px rgba(74,56,30,0.35);
     transition: transform 0.3s ease, border-color 0.3s ease;
   }
   .card:hover { border-color: var(--rule, var(--border)); }
-  h2 { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--primary); font-weight: 600; font-family: 'Fraunces', Georgia, serif; margin: 0 0 18px; display: flex; align-items: center; gap: 14px; }
+  h2 { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--primary); font-weight: 600; font-family: 'Inter', system-ui, sans-serif; margin: 0 0 18px; display: flex; align-items: center; gap: 14px; }
   h2::after { content: ''; flex: 1; display: block; height: 1px; background: var(--border); }
-  label { display: block; font-size: 13px; letter-spacing: 0.12em; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; font-family: 'Fraunces', Georgia, serif; }
+  label { display: block; font-size: 13px; letter-spacing: 0.12em; font-weight: 600; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; font-family: 'Inter', system-ui, sans-serif; }
   
   .drop {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -249,7 +252,7 @@ PAGE_CSS = """
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 var(--accent-glow); } 70% { box-shadow: 0 0 0 10px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
   
   .vmeta { flex: 1; min-width: 0; }
-  .vname { font-weight: 600; font-size: 18px; color: var(--text); margin-bottom: 2px; font-family: 'Fraunces', Georgia, serif; }
+  .vname { font-weight: 600; font-size: 18px; color: var(--text); margin-bottom: 2px; font-family: 'Inter', system-ui, sans-serif; }
   .vtag { font-size: 12px; color: var(--primary); font-weight: 600; }
   .vdesc { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   
@@ -269,8 +272,8 @@ PAGE_CSS = """
   .pill.sel small { color: var(--primary); }
   
   button.go {
-    width: 100%; padding: 18px; margin-top: 32px; border: 0; border-radius: 8px; cursor: pointer;
-    background: var(--primary); color: #fdf6e8; font-size: 20px; font-weight: 600; font-family: 'Fraunces', Georgia, serif; letter-spacing: 0.01em;
+    width: 100%; padding: 18px; margin-top: 32px; border: 0; border-radius: 12px; cursor: pointer;
+    background: var(--primary); color: var(--on-primary, #fff); font-size: 17px; font-weight: 700; font-family: 'Inter', system-ui, sans-serif; letter-spacing: 0;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 10px 22px -8px var(--accent-glow);
     display: flex; align-items: center; justify-content: center; gap: 10px;
   }
@@ -290,8 +293,8 @@ PAGE_CSS = """
   .muted { color: var(--text-muted); font-size: 14px; font-weight: 500; }
   .bar { height: 14px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; margin: 20px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); border: 1px solid var(--border); }
   .fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 8px; box-shadow: 0 0 10px var(--accent-glow); }
-  .dl { display: inline-flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; padding: 16px 28px; background: var(--primary); color: #fdf6e8; border-radius: 8px; font-weight: 600; font-size: 17px; font-family: 'Fraunces', Georgia, serif; transition: all 0.2s; box-shadow: 0 10px 22px -8px var(--accent-glow); text-decoration: none; width: 100%; }
-  .dl:hover { transform: translateY(-2px); box-shadow: 0 15px 28px -10px var(--accent-glow); filter: brightness(1.06); color: #fdf6e8; }
+  .dl { display: inline-flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; padding: 16px 28px; background: var(--primary); color: var(--on-primary, #fff); border-radius: 12px; font-weight: 700; font-size: 16px; font-family: 'Inter', system-ui, sans-serif; transition: all 0.2s; box-shadow: 0 10px 22px -8px var(--accent-glow); text-decoration: none; width: 100%; }
+  .dl:hover { transform: translateY(-2px); box-shadow: 0 15px 28px -10px var(--accent-glow); filter: brightness(1.06); color: var(--on-primary, #fff); }
 
   select {
     width: 100%; padding: 12px 16px; border-radius: 12px; background: var(--play-bg); color: var(--text);
@@ -305,6 +308,12 @@ PAGE_CSS = """
     padding: 6px 12px; border-radius: 8px; background: var(--play-bg); color: var(--text); border: 1px solid var(--border); font-size: 13px; font-weight: 600; cursor: pointer; width: auto;
   }
 
+  /* Accessibility (ui-ux-pro-max CRITICAL rules): visible keyboard focus + reduced-motion */
+  :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+  .voice:focus-visible, .pill:focus-visible { outline-offset: 4px; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  }
 </style>"""
 
 
@@ -355,13 +364,13 @@ def index():
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Audiobook Maker</title>__CSS__
 <script>
-  let thm = localStorage.getItem('theme') || 'theme-light';
+  let thm = localStorage.getItem('theme') || 'theme-dark';
   document.documentElement.className = thm;
   function setT(v) { document.documentElement.className = v; localStorage.setItem('theme', v); }
 </script>
 </head><body>
 <div style="display:flex; justify-content:space-between; align-items:center;">
-  <div class="brand"><span class="brand-icon">📚</span><h1>Audiobook Maker</h1></div>
+  <div class="brand"><span class="brand-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9v6"/><path d="M9 5v14"/><path d="M14 8v8"/><path d="M19 6v12"/></svg></span><h1>Audiobook Maker</h1></div>
   <select class="theme-select" onchange="setT(this.value)">
     <option value="theme-dark">Dark</option>
     <option value="theme-light">Light</option>
@@ -470,7 +479,7 @@ if(vsl) {
 
 function pickq(el){document.querySelectorAll('.pill').forEach(function(p){p.classList.remove('sel');});el.classList.add('sel');document.getElementById('quality').value=el.dataset.q;}
 var aud=null,curBtn=null;
-document.querySelector('select.theme-select').value = document.documentElement.className || 'theme-light';
+document.querySelector('select.theme-select').value = document.documentElement.className || 'theme-dark';
 function reset(b){if(b){b.classList.remove('playing');b.innerHTML=SVG_PLAY;}}
 function preview(btn,id){
  if(ambAud) ambAud.pause(); document.getElementById('amb_select').value='';
@@ -590,13 +599,13 @@ def job_page(jid: str):
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>__NAME__</title>__CSS__
 <script>
-  let thm = localStorage.getItem('theme') || 'theme-light';
+  let thm = localStorage.getItem('theme') || 'theme-dark';
   document.documentElement.className = thm;
   function setT(v) { document.documentElement.className = v; localStorage.setItem('theme', v); }
 </script>
 </head><body>
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-  <div class="brand"><span class="brand-icon">📚</span><h1>Audiobook Maker</h1></div>
+  <div class="brand"><span class="brand-icon" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9v6"/><path d="M9 5v14"/><path d="M14 8v8"/><path d="M19 6v12"/></svg></span><h1>Audiobook Maker</h1></div>
   <select class="theme-select" onchange="setT(this.value)">
     <option value="theme-dark">Dark</option>
     <option value="theme-light">Light</option>
@@ -756,7 +765,7 @@ async function togglePause(jid) {
 async function toggleResume(jid) {
   await fetch("/api/job/" + jid + "/resume", {method: "POST"});
 }
-document.querySelector('select.theme-select').value = document.documentElement.className || 'theme-light';
+document.querySelector('select.theme-select').value = document.documentElement.className || 'theme-dark';
 poll();
 </script></body></html>"""
     return page.replace("__NAME__", html_name).replace("__CSS__", PAGE_CSS).replace("__JID__", j["id"])
