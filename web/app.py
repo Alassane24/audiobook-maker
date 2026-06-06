@@ -304,7 +304,7 @@ PAGE_CSS = """
   .err::before { background: #f87171; box-shadow: 0 0 7px rgba(248,113,113,0.75); }
   
   .muted { color: var(--text-muted); font-size: 14px; font-weight: 500; }
-  .bar { height: 14px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; margin: 20px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); border: 1px solid var(--border); }
+  .bar { height: 14px; background: var(--play-bg); border-radius: 8px; overflow: hidden; margin: 20px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); border: 1px solid var(--border); }
   .fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 8px; box-shadow: 0 0 10px var(--accent-glow); }
   .dl { display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-top: 20px; padding: 17px 28px; background: var(--primary); color: var(--on-primary, #fff); border-radius: 6px; font-weight: 600; font-size: 13px; font-family: 'Jost', system-ui, sans-serif; letter-spacing: 0.18em; text-transform: uppercase; transition: all 0.2s; box-shadow: 0 10px 22px -8px var(--accent-glow); text-decoration: none; width: 100%; }
   .dl:hover { transform: translateY(-2px); box-shadow: 0 15px 28px -10px var(--accent-glow); filter: brightness(1.06); color: var(--on-primary, #fff); }
@@ -666,9 +666,11 @@ def job_page(jid: str):
 <script>
 const I_PLAY = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8V4z"/></svg>';
 const I_PAUSE = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-const I_RW = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><text x="12.4" y="15.4" font-size="8.5" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle" font-family="Inter,system-ui,sans-serif">15</text></svg>';
-const I_FF = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><text x="11.6" y="15.4" font-size="8.5" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle" font-family="Inter,system-ui,sans-serif">15</text></svg>';
+const I_RW = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><text x="12.4" y="15.4" font-size="8.5" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle" font-family="Jost,system-ui,sans-serif">15</text></svg>';
+const I_FF = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><text x="11.6" y="15.4" font-size="8.5" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle" font-family="Jost,system-ui,sans-serif">15</text></svg>';
 
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function playChapter(start){var p=document.getElementById('player');if(!p)return;p.currentTime=start;p.play();var b=document.getElementById('playBtn');if(b){b.innerHTML=I_PAUSE;b.style.paddingLeft='0';}}
 function fmtT(s) {
     let m=Math.floor(s/60), sec=Math.floor(s%60), h=Math.floor(m/60); m=m%60;
     return h>0 ? h+":"+(m<10?"0":"")+m+":"+(sec<10?"0":"")+sec : m+":"+(sec<10?"0":"")+sec;
@@ -761,7 +763,7 @@ async function poll(){
         j.chapters_info.forEach(function(ch) {
             let m = Math.floor(ch.start / 60), s = Math.floor(ch.start % 60);
             let timeStr = (m < 60) ? (m + ':' + (s<10?'0':'')+s) : (Math.floor(m/60) + ':' + ((m%60)<10?'0':'')+(m%60) + ':' + (s<10?'0':'')+s);
-            html += '<div class="ch-row" style="padding:14px 18px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; gap:16px; align-items:center; transition:background 0.2s;" onclick="document.getElementById(&#39;player&#39;).currentTime=' + ch.start + '; document.getElementById(&#39;player&#39;).play(); document.getElementById(&#39;playBtn&#39;).innerHTML=I_PAUSE; document.getElementById(&#39;playBtn&#39;).style.paddingLeft=&#39;0&#39;;" onmouseover="this.style.background=&#39;rgba(255,255,255,0.05)&#39;" onmouseout="this.style.background=&#39;&#39;"><span style="color:var(--primary); font-family:ui-monospace,monospace; font-weight:700; font-size:13px; min-width:48px;">' + timeStr + '</span><span style="font-size:14px; color:var(--text); font-weight:500; line-height:1.4;">' + ch.title + '</span></div>';
+            html += '<div class="ch-row" tabindex="0" role="button" aria-label="Play from ' + timeStr + '" style="padding:14px 18px; cursor:pointer; border-bottom:1px solid var(--border); display:flex; gap:16px; align-items:center; transition:background 0.2s; border-radius:4px;" onclick="playChapter(' + ch.start + ')" onkeydown="if(event.key===&#39;Enter&#39;||event.key===&#39; &#39;){event.preventDefault();playChapter(' + ch.start + ');}" onmouseover="this.style.background=&#39;var(--play-bg)&#39;" onmouseout="this.style.background=&#39;&#39;"><span style="color:var(--primary); font-family:ui-monospace,monospace; font-weight:700; font-size:13px; min-width:48px;">' + timeStr + '</span><span style="font-size:14px; color:var(--text); font-weight:500; line-height:1.4;">' + esc(ch.title) + '</span></div>';
         });
         html += '</div>';
     }
@@ -806,7 +808,7 @@ def download(jid: str):
     return HTMLResponse("File missing", status_code=404)
 
 
-@app.get("/stream/{jid}")
+@app.api_route("/stream/{jid}", methods=["GET", "HEAD"])
 def stream(jid: str):
     # Separate from /download: the <audio> player needs the file served INLINE
     # (no attachment disposition) with an explicit audio MIME type and HTTP range
