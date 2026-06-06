@@ -6,7 +6,11 @@
 The Audiobook Maker is currently fully functional and running as a 24/7 background service on the host machine. The application automatically starts silently when the PC is booted. 
 
 ## Recent Updates & Accomplishments
-1. **Major UI/UX Overhaul**: 
+0. **Warm Literary / Editorial Redesign (2026-06-06)**:
+   - Reskinned the whole frontend to a "parchment & ink" literary aesthetic (frontend-design plugin style). Fonts switched from Inter to **Fraunces** (display) + **Newsreader** (body) serif; palette is cream/ink with terracotta + gold accents; cards are bookish (soft corners, paper shadow). Driven entirely through the existing CSS variables — no HTML/JS structure changes.
+   - `:root` and `.theme-light` = bright parchment (now the default load); `.theme-dark` = "evening library" dark-academia (warm sepia/brown).
+   - **Known follow-up:** `.theme-midnight`, `.theme-crimson`, `.theme-matcha` still carry their OLD neon palettes — they now clash with the serif fonts when selected. Either retune them to literary variants or trim the theme list. Theme-dropdown labels also still read "Dark/Light/Midnight Blue/..." (could be renamed to Parchment/Evening/etc.).
+1. **Major UI/UX Overhaul** (superseded by the 2026-06-06 redesign above for visual styling; functional features below still apply): 
    - Redesigned the web interface with modern aesthetics, glassmorphism, and dynamic animations.
    - Implemented 5 customizable UI themes (Dark, Light, Midnight Blue, Crimson, Matcha Green) via CSS variables.
    - Built a custom audio player with interactive controls (Play/Pause, Rewind/Skip 15s, Progress Scrubber) and a clickable chapter list to jump to specific points in the audiobook.
