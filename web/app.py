@@ -286,9 +286,12 @@ PAGE_CSS = """
   a { color: var(--primary); text-decoration: none; font-weight: 600; transition: color 0.2s; }
   a:hover { color: var(--accent); }
   
-  .tag { font-size: 12px; padding: 4px 12px; border-radius: 20px; background: var(--play-bg); color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
-  .ok { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); }
-  .err { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+  .tag { display: inline-flex; align-items: center; gap: 7px; font-size: 11px; padding: 4px 11px; border-radius: 7px; background: var(--play-bg); color: var(--text-muted); border: 1px solid var(--border); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .tag::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted); flex: none; }
+  .ok { color: var(--text); }
+  .ok::before { background: #34d399; box-shadow: 0 0 7px rgba(52,211,153,0.75); }
+  .err { color: var(--text); }
+  .err::before { background: #f87171; box-shadow: 0 0 7px rgba(248,113,113,0.75); }
   
   .muted { color: var(--text-muted); font-size: 14px; font-weight: 500; }
   .bar { height: 14px; background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; margin: 20px 0; box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); border: 1px solid var(--border); }
@@ -360,7 +363,7 @@ def recent_rows():
         if st == "cancelled": continue
         cls = {"done": "ok", "error": "err"}.get(st, "")
         link = f'<a href="/job/{j["id"]}">{html.escape(j["name"])}</a>'
-        del_btn = f'<button onclick="delJob(\'{j["id"]}\')" style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); cursor:pointer; color:#ef4444; padding:6px 10px; border-radius:8px; font-weight:700; font-size:12px; transition:all 0.2s;" onmouseover="this.style.background=\\\'rgba(239, 68, 68, 0.2)\\\'"{chr(10)}onmouseout="this.style.background=\\\'rgba(239, 68, 68, 0.1)\\\'">Delete</button>'
+        del_btn = f'<button onclick="delJob(\'{j["id"]}\')" title="Delete audiobook" style="display:inline-flex; align-items:center; gap:6px; background:transparent; border:1px solid var(--border); cursor:pointer; color:var(--text-muted); padding:6px 12px; border-radius:8px; font-weight:600; font-size:12px; transition:all 0.18s; font-family:inherit;" onmouseover="this.style.borderColor=\'#ef4444\'; this.style.color=\'#ef4444\'; this.style.background=\'rgba(239,68,68,0.08)\';" onmouseout="this.style.borderColor=\'var(--border)\'; this.style.color=\'var(--text-muted)\'; this.style.background=\'transparent\';"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>Delete</button>'
         rows.append(f'<div class="row" id="row-{j["id"]}"><div style="flex:1;">{link} <span class="tag {cls}" style="margin-left:8px;">{st}</span></div>{del_btn}</div>')
     return "".join(rows)
 
@@ -634,9 +637,9 @@ def job_page(jid: str):
   <div style="position:absolute; top:50%; left:0; right:0; height:2px; background:var(--border); z-index:0; transform:translateY(-50%);"></div>
   <div id="track-line" style="position:absolute; top:50%; left:0; width:0%; height:2px; background:var(--primary); z-index:0; transform:translateY(-50%); transition:width 0.5s;"></div>
   
-  <div class="step-dot" id="dot-ocr" style="z-index:1; background:var(--play-bg); padding:4px 12px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Extract</div>
-  <div class="step-dot" id="dot-tts" style="z-index:1; background:var(--play-bg); padding:4px 12px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Narrating</div>
-  <div class="step-dot" id="dot-mux" style="z-index:1; background:var(--play-bg); padding:4px 12px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Packaging</div>
+  <div class="step-dot" id="dot-ocr" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Extract</div>
+  <div class="step-dot" id="dot-tts" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Narrating</div>
+  <div class="step-dot" id="dot-mux" style="z-index:1; background:var(--card); padding:5px 14px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Packaging</div>
  </div>
 
  <div id="msg" style="font-size:16px; font-weight:600; color:#f8fafc; margin-bottom:12px; text-align:center;">Loading...</div>
