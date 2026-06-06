@@ -739,7 +739,7 @@ async function poll(){
     document.getElementById('sub').textContent = sub;
     let mins = j.minutes || 0;
     let html = '<p class="ok" style="margin:0 0 16px; padding:12px 16px; border-radius:12px; display:flex; align-items:center; gap:8px; background:var(--primary-hover); color:var(--primary); border:1px solid var(--border);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Finished ('+(mins/60).toFixed(1)+' h)</p>';
-    html += '<audio id="player" src="/download/'+j.id+'" ontimeupdate="onT()" onloadedmetadata="onL()"></audio>';
+    html += '<audio id="player" src="/stream/'+j.id+'" preload="metadata" ontimeupdate="onT()" onloadedmetadata="onL()"></audio>';
     html += '<div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; margin:20px 0; box-shadow:inset 0 2px 10px rgba(0,0,0,0.2);">';
     html += '<div style="display:flex; align-items:center; justify-content:center; gap:32px; margin-bottom:20px;">';
     html += '<button onclick="skp(-15)" style="background:none; border:none; cursor:pointer; color:var(--text-muted); display:flex; align-items:center; justify-content:center; transition:color 0.2s; padding:8px;" onmouseover="this.style.color=&#39;var(--text)&#39;" onmouseout="this.style.color=&#39;var(--text-muted)&#39;">' + I_RW + '</button>';
@@ -798,6 +798,21 @@ def download(jid: str):
     out_m4b = os.path.join(j["dir"], j["base"] + ".m4b")
     if os.path.exists(out_m4b):
         return FileResponse(out_m4b, filename=j["base"] + ".m4b")
+    return HTMLResponse("File missing", status_code=404)
+
+
+@app.get("/stream/{jid}")
+def stream(jid: str):
+    # Separate from /download: the <audio> player needs the file served INLINE
+    # (no attachment disposition) with an explicit audio MIME type and HTTP range
+    # support. iOS Safari silently refuses to play attachment-dispositioned media,
+    # which is why playback worked on desktop downloads but not on the phone.
+    j = jobs.get(jid)
+    if not j or j.get("status") != "done":
+        return HTMLResponse("Not ready or not found", status_code=404)
+    out_m4b = os.path.join(j["dir"], j["base"] + ".m4b")
+    if os.path.exists(out_m4b):
+        return FileResponse(out_m4b, media_type="audio/mp4")
     return HTMLResponse("File missing", status_code=404)
 
 
