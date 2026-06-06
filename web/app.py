@@ -12,7 +12,7 @@ import pipeline
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 JOBS_DIR = os.path.join(BASE, "jobs")
-TRANSFER = os.path.expandvars(r"%USERPROFILE%\Desktop\Transfer")
+TRANSFER = r"D:\Transfer\Audiobooks"
 os.makedirs(JOBS_DIR, exist_ok=True)
 os.makedirs(TRANSFER, exist_ok=True)
 
