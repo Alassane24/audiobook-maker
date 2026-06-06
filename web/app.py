@@ -700,7 +700,7 @@ async function poll(){
   document.getElementById('msg').textContent = j.message || j.status;
   document.getElementById('fill').style.width = Math.round((j.frac||0)*100)+'%';
   document.getElementById('pct').innerText=Math.round((j.frac||0)*100)+'%';
-  document.getElementById('mode').innerText = (j.mode==='ocr') ? 'Reading scanned pages' : ((j.mode==='text') ? 'Reading the text' : '');
+  document.getElementById('mode').innerText = (j.status==='done') ? '' : (j.phase==='tts') ? 'Narrating' : (j.phase==='mux') ? 'Finishing up' : (j.phase==='ocr') ? 'Reading scanned pages' : (j.phase==='extract') ? 'Reading the text' : (j.phase==='detect') ? 'Preparing…' : '';
  
  if(j.status === 'paused') {
    document.getElementById('btn-pause').style.display = 'none';
@@ -718,20 +718,24 @@ async function poll(){
 
  let w = 0;
  let phase = j.phase;
- function hl(id) {
-   let el = document.getElementById(id);
-   if(el) { el.style.borderColor = 'var(--primary)'; el.style.color = 'var(--text)'; el.style.boxShadow = '0 0 8px var(--accent-glow)'; }
+ // Three distinct states so a DONE step never looks like the CURRENT one:
+ //   active  = gold border + glow + bright bold text (what's happening now)
+ //   done    = gold border, muted text, no glow (already finished)
+ //   pending = faint border, muted text (not started)
+ function setDot(id, st) {
+   let el = document.getElementById(id); if(!el) return;
+   if (st === 'active') { el.style.borderColor = 'var(--primary)'; el.style.color = 'var(--text)'; el.style.boxShadow = '0 0 10px var(--accent-glow)'; el.style.fontWeight = '700'; }
+   else if (st === 'done') { el.style.borderColor = 'var(--primary)'; el.style.color = 'var(--text-muted)'; el.style.boxShadow = 'none'; el.style.fontWeight = '600'; }
+   else { el.style.borderColor = 'var(--border)'; el.style.color = 'var(--text-muted)'; el.style.boxShadow = 'none'; el.style.fontWeight = '600'; }
  }
- function rst(id) {
-   let el = document.getElementById(id);
-   if(el) { el.style.borderColor = 'var(--border)'; el.style.color = 'var(--text-muted)'; el.style.boxShadow = 'none'; }
- }
- if (phase === 'detect' || phase === 'extract' || phase === 'ocr') {
-   w = 0; hl('dot-ocr'); rst('dot-tts'); rst('dot-mux');
+ if (j.status === 'done') {
+   w = 100; setDot('dot-ocr','done'); setDot('dot-tts','done'); setDot('dot-mux','done');
+ } else if (phase === 'mux') {
+   w = 100; setDot('dot-ocr','done'); setDot('dot-tts','done'); setDot('dot-mux','active');
  } else if (phase === 'tts') {
-   w = 50; hl('dot-ocr'); hl('dot-tts'); rst('dot-mux');
- } else if (phase === 'mux' || phase === 'done') {
-   w = 100; hl('dot-ocr'); hl('dot-tts'); hl('dot-mux');
+   w = 50; setDot('dot-ocr','done'); setDot('dot-tts','active'); setDot('dot-mux','pending');
+ } else {
+   w = 0; setDot('dot-ocr','active'); setDot('dot-tts','pending'); setDot('dot-mux','pending');
  }
  document.getElementById('track-line').style.width = w + '%';
 
