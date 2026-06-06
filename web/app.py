@@ -308,6 +308,13 @@ PAGE_CSS = """
     padding: 6px 12px; border-radius: 8px; background: var(--play-bg); color: var(--text); border: 1px solid var(--border); font-size: 13px; font-weight: 600; cursor: pointer; width: auto;
   }
 
+  /* Chapter list scrollbar — slim, themed (replaces chunky default) */
+  .ch-list { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .ch-list::-webkit-scrollbar { width: 8px; }
+  .ch-list::-webkit-scrollbar-track { background: transparent; margin: 6px 0; }
+  .ch-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+  .ch-list::-webkit-scrollbar-thumb:hover { background: var(--text-muted); background-clip: padding-box; }
+
   /* Accessibility (ui-ux-pro-max CRITICAL rules): visible keyboard focus + reduced-motion */
   :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
   .voice:focus-visible, .pill:focus-visible { outline-offset: 4px; }
@@ -624,12 +631,12 @@ def job_page(jid: str):
 </div>
 <div class="card" style="margin-bottom:24px;">
  <div style="display:flex; justify-content:space-between; margin-bottom:32px; position:relative; max-width:400px; margin-left:auto; margin-right:auto; margin-top:8px;">
-  <div style="position:absolute; top:50%; left:0; right:0; height:2px; background:#334155; z-index:0; transform:translateY(-50%);"></div>
-  <div id="track-line" style="position:absolute; top:50%; left:0; width:0%; height:2px; background:#ec4899; z-index:0; transform:translateY(-50%); transition:width 0.5s;"></div>
+  <div style="position:absolute; top:50%; left:0; right:0; height:2px; background:var(--border); z-index:0; transform:translateY(-50%);"></div>
+  <div id="track-line" style="position:absolute; top:50%; left:0; width:0%; height:2px; background:var(--primary); z-index:0; transform:translateY(-50%); transition:width 0.5s;"></div>
   
-  <div class="step-dot" id="dot-ocr" style="z-index:1; background:#1e293b; padding:4px 12px; color:#94a3b8; font-size:12px; font-weight:600; border-radius:12px; border:2px solid #334155; transition:all 0.3s;">Extract</div>
-  <div class="step-dot" id="dot-tts" style="z-index:1; background:#1e293b; padding:4px 12px; color:#94a3b8; font-size:12px; font-weight:600; border-radius:12px; border:2px solid #334155; transition:all 0.3s;">Narrating</div>
-  <div class="step-dot" id="dot-mux" style="z-index:1; background:#1e293b; padding:4px 12px; color:#94a3b8; font-size:12px; font-weight:600; border-radius:12px; border:2px solid #334155; transition:all 0.3s;">Packaging</div>
+  <div class="step-dot" id="dot-ocr" style="z-index:1; background:var(--play-bg); padding:4px 12px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Extract</div>
+  <div class="step-dot" id="dot-tts" style="z-index:1; background:var(--play-bg); padding:4px 12px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Narrating</div>
+  <div class="step-dot" id="dot-mux" style="z-index:1; background:var(--play-bg); padding:4px 12px; color:var(--text-muted); font-size:12px; font-weight:600; border-radius:12px; border:2px solid var(--border); transition:all 0.3s;">Packaging</div>
  </div>
 
  <div id="msg" style="font-size:16px; font-weight:600; color:#f8fafc; margin-bottom:12px; text-align:center;">Loading...</div>
@@ -646,8 +653,8 @@ def job_page(jid: str):
 <script>
 const I_PLAY = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8V4z"/></svg>';
 const I_PAUSE = '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
-const I_RW = '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="11 19 2 12 11 5 11 19"></polygon><polygon points="22 19 13 12 22 5 22 19"></polygon></svg>';
-const I_FF = '<svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor"><polygon points="13 19 22 12 13 5 13 19"></polygon><polygon points="2 19 11 12 2 5 2 19"></polygon></svg>';
+const I_RW = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><text x="12.4" y="15.4" font-size="8.5" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle" font-family="Inter,system-ui,sans-serif">15</text></svg>';
+const I_FF = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><text x="11.6" y="15.4" font-size="8.5" font-weight="700" stroke="none" fill="currentColor" text-anchor="middle" font-family="Inter,system-ui,sans-serif">15</text></svg>';
 
 function fmtT(s) {
     let m=Math.floor(s/60), sec=Math.floor(s%60), h=Math.floor(m/60); m=m%60;
@@ -700,11 +707,11 @@ async function poll(){
  let phase = j.phase;
  function hl(id) {
    let el = document.getElementById(id);
-   if(el) { el.style.borderColor = '#ec4899'; el.style.color = '#f8fafc'; el.style.boxShadow = '0 0 8px rgba(236,72,153,0.4)'; }
+   if(el) { el.style.borderColor = 'var(--primary)'; el.style.color = 'var(--text)'; el.style.boxShadow = '0 0 8px var(--accent-glow)'; }
  }
  function rst(id) {
    let el = document.getElementById(id);
-   if(el) { el.style.borderColor = '#334155'; el.style.color = '#94a3b8'; el.style.boxShadow = 'none'; }
+   if(el) { el.style.borderColor = 'var(--border)'; el.style.color = 'var(--text-muted)'; el.style.boxShadow = 'none'; }
  }
  if (phase === 'detect' || phase === 'extract' || phase === 'ocr') {
    w = 0; hl('dot-ocr'); rst('dot-tts'); rst('dot-mux');
@@ -719,7 +726,7 @@ async function poll(){
     let sub = (j.mode? ('Mode: '+j.mode+'  ') : '') + (j.phase? ('· '+j.phase) : '');
     document.getElementById('sub').textContent = sub;
     let mins = j.minutes || 0;
-    let html = '<p class="ok" style="margin:0 0 16px; padding:12px 16px; border-radius:12px; display:flex; align-items:center; gap:8px; background:rgba(34,197,94,0.1); color:#4ade80;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Finished ('+(mins/60).toFixed(1)+' h)</p>';
+    let html = '<p class="ok" style="margin:0 0 16px; padding:12px 16px; border-radius:12px; display:flex; align-items:center; gap:8px; background:var(--primary-hover); color:var(--primary); border:1px solid var(--border);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> Finished ('+(mins/60).toFixed(1)+' h)</p>';
     html += '<audio id="player" src="/download/'+j.id+'" ontimeupdate="onT()" onloadedmetadata="onL()"></audio>';
     html += '<div style="background:var(--card); border:1px solid var(--border); border-radius:20px; padding:24px; margin:20px 0; box-shadow:inset 0 2px 10px rgba(0,0,0,0.2);">';
     html += '<div style="display:flex; align-items:center; justify-content:center; gap:32px; margin-bottom:20px;">';
@@ -733,11 +740,11 @@ async function poll(){
     html += '</div></div>';
     
     if (j.chapters_info && j.chapters_info.length > 0) {
-        html += '<div class="ch-list" style="max-height:320px; overflow-y:auto; border:1px solid rgba(255,255,255,0.08); border-radius:16px; background:rgba(15,23,42,0.4); margin-bottom:24px;">';
+        html += '<div class="ch-list" style="max-height:320px; overflow-y:auto; border:1px solid var(--border); border-radius:16px; background:var(--play-bg); margin-bottom:24px;">';
         j.chapters_info.forEach(function(ch) {
             let m = Math.floor(ch.start / 60), s = Math.floor(ch.start % 60);
             let timeStr = (m < 60) ? (m + ':' + (s<10?'0':'')+s) : (Math.floor(m/60) + ':' + ((m%60)<10?'0':'')+(m%60) + ':' + (s<10?'0':'')+s);
-            html += '<div class="ch-row" style="padding:14px 18px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; gap:16px; align-items:center; transition:background 0.2s;" onclick="document.getElementById(&#39;player&#39;).currentTime=' + ch.start + '; document.getElementById(&#39;player&#39;).play(); document.getElementById(&#39;playBtn&#39;).innerHTML=I_PAUSE; document.getElementById(&#39;playBtn&#39;).style.paddingLeft=&#39;0&#39;;" onmouseover="this.style.background=&#39;rgba(255,255,255,0.05)&#39;" onmouseout="this.style.background=&#39;&#39;"><span style="color:#f472b6; font-family:ui-monospace,monospace; font-weight:700; font-size:13px; min-width:48px;">' + timeStr + '</span><span style="font-size:14px; color:#e2e8f0; font-weight:500; line-height:1.4;">' + ch.title + '</span></div>';
+            html += '<div class="ch-row" style="padding:14px 18px; cursor:pointer; border-bottom:1px solid rgba(255,255,255,0.04); display:flex; gap:16px; align-items:center; transition:background 0.2s;" onclick="document.getElementById(&#39;player&#39;).currentTime=' + ch.start + '; document.getElementById(&#39;player&#39;).play(); document.getElementById(&#39;playBtn&#39;).innerHTML=I_PAUSE; document.getElementById(&#39;playBtn&#39;).style.paddingLeft=&#39;0&#39;;" onmouseover="this.style.background=&#39;rgba(255,255,255,0.05)&#39;" onmouseout="this.style.background=&#39;&#39;"><span style="color:var(--primary); font-family:ui-monospace,monospace; font-weight:700; font-size:13px; min-width:48px;">' + timeStr + '</span><span style="font-size:14px; color:#e2e8f0; font-weight:500; line-height:1.4;">' + ch.title + '</span></div>';
         });
         html += '</div>';
     }
