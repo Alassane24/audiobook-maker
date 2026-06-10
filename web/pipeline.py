@@ -68,7 +68,12 @@ def detect_mode(epub_path):
 HEADER_RE = re.compile(r"Re:\s*Zero kara Hajimeru", re.I)
 VOLUME_RE = re.compile(r"Web Novel Volume", re.I)
 CHAPTER_RE = re.compile(r"(?:(?:Arc\s*(?P<arc>\d+)\s*)?Chapter\s*(?P<ch>\d+|[A-Za-z]+)|(?P<prologue>Prologue|Epilogue))(?:\s*[-–—=:]+\s*(?P<title>.*))?", re.I)
-PAGENUM_RE = re.compile(r"^\d{1,4}$")
+PAGENUM_RE = re.compile(r"^\d{1,4}:?$")
+# Speaker labels in these scans are little portrait icons; OCR mangles
+# them into digits ("222:" before a quote, regardless of who speaks).
+# Normalize to the web-novel's unknown-speaker form so the reader can
+# still break dialogue onto its own line.
+BAD_SPEAKER_RE = re.compile(r"(?<![\w])\d{1,4}:\s*(?=[“”\"'\[])")
 FOOTNOTE_RE = re.compile(r"^\d{1,2}\s+[A-Z]")
 FNCONTENT_RE = re.compile(r"Engrish flip|Means\b.*\boriginally\b", re.I)
 CREDIT_RE = re.compile(
@@ -122,14 +127,36 @@ def _clean_page(raw, state):
             continue
         if _alpha_ratio(s) < 0.55 or len(re.sub(r"[^A-Za-z]", "", s)) < 3:
             continue
+        s = BAD_SPEAKER_RE.sub("???: ", s)
         if pending_title and state["chapters"]:
             pending_title = False
-            if len(s) <= 60 and not TITLE_BAD.search(s):
+            # A wrapped title fragment never ends in sentence punctuation;
+            # a first prose line usually does — don't glue prose onto titles.
+            if len(s) <= 60 and not TITLE_BAD.search(s) and not re.search(r"[.!?…”\"]$", s):
                 state["chapters"][-1]["title"] += " " + s
                 continue
         pending_title = False
         body.append(s)
     return body
+
+
+def _is_art(path):
+    """Among pages that OCR to nothing: artwork vs blank. Calibrated on
+    the Re:Zero scans (white-on-black): blank/junk pages sit at stddev
+    6-19, illustrations at 32+. Text pages never reach this check."""
+    try:
+        from PIL import ImageStat
+        img = Image.open(path).convert("L")
+        img.thumbnail((400, 400))
+        return ImageStat.Stat(img).stddev[0] > 22
+    except Exception:
+        return False
+
+
+def _chapter_char_len(ch):
+    """Length of the chapter text as it will exist after ' '.join(lines)."""
+    lines = ch["lines"]
+    return sum(len(l) for l in lines) + max(0, len(lines) - 1)
 
 
 def run_ocr(epub_path, work, progress):
@@ -159,23 +186,49 @@ def run_ocr(epub_path, work, progress):
 
     ordered = [results[os.path.basename(p)] for p in paths]
     state = {"key": None, "chapters": []}
-    for raw in ordered:
+    pending_art = []   # illustration pages seen before the first chapter
+    for path, raw in zip(paths, ordered):
         body = _clean_page(raw, state)
         if body:
             if not state["chapters"]:
-                state["chapters"].append({"title": "Chapter 1", "lines": []})
-            state["chapters"][-1]["lines"].extend(body)
-    chapters = [{"title": c["title"], "text": " ".join(c["lines"])}
+                state["chapters"].append({"title": "Chapter 1", "lines": [], "images": []})
+            cur = state["chapters"][-1]
+            cur.setdefault("images", [])
+            if pending_art:
+                cur["images"].extend({"char": 0, "file": f} for f in pending_art)
+                pending_art = []
+            cur["lines"].extend(body)
+        elif len(raw.strip()) < 120 and _is_art(path):
+            # A page with no extractable text but real pixel content is an
+            # illustration; anchor it where the story currently stands.
+            if state["chapters"]:
+                cur = state["chapters"][-1]
+                cur.setdefault("images", []).append(
+                    {"char": _chapter_char_len(cur), "file": os.path.basename(path)})
+            else:
+                pending_art.append(os.path.basename(path))
+    chapters = [{"title": c["title"], "text": " ".join(c["lines"]), "images": c.get("images", [])}
                 for c in state["chapters"] if c["lines"]]
     story = [c for c in chapters
              if re.match(r"(Arc\s*\d+\s*)?Chapter|Prologue|Epilogue", c["title"], re.I) and len(c["text"]) > 1500]
+    if story and story is not chapters:
+        # Art belonging to dropped front-matter chapters re-anchors to the
+        # start of the first kept chapter so it isn't lost.
+        kept = {id(c) for c in story}
+        orphans = [img["file"] for c in chapters if id(c) not in kept for img in c.get("images", [])]
+        if orphans:
+            story[0].setdefault("images", [])[:0] = [{"char": 0, "file": f} for f in orphans]
     return story or chapters  # fall back to all if no Arc/Chapter scheme
 
 # ---------------------------------------------------------------- text path
 def run_text(epub_path, work, progress):
+    import posixpath
     from ebooklib import epub, ITEM_DOCUMENT
-    from bs4 import BeautifulSoup
+    from bs4 import BeautifulSoup, NavigableString
     book = epub.read_epub(epub_path, options={"ignore_ncx": True})
+    z = zipfile.ZipFile(epub_path)
+    zip_names = {n.lower(): n for n in z.namelist()}
+    img_dir = os.path.join(work, "_images")
     chapters = []
     docs = list(book.get_items_of_type(ITEM_DOCUMENT))
     for i, item in enumerate(docs):
@@ -184,10 +237,50 @@ def run_text(epub_path, work, progress):
         title = (h.get_text().strip() if h else f"Chapter {len(chapters)+1}")[:80]
         for t in soup(["style", "script", "head"]):
             t.decompose()
+
+        # Swap each inline image for a zero-width sentinel, squash the text
+        # exactly as before, then read the sentinel positions back out —
+        # that gives the image's true character anchor in the final text.
+        img_srcs = []
+        for k, tag in enumerate(soup.find_all(["img", "image"])):
+            src = tag.get("src") or tag.get("href") or tag.get("xlink:href") or ""
+            tag.replace_with(NavigableString(f"\x00{k}\x00"))
+            img_srcs.append(src)
         text = re.sub(r"\s+", " ", soup.get_text(" ")).strip()
+
+        # Resolve offsets left-to-right while removing sentinels.
+        images = []
+        out, pos = [], 0
+        for m in re.finditer(r"\x00(\d+)\x00", text):
+            out.append(text[pos:m.start()])
+            images.append({"char": sum(len(s) for s in out), "k": int(m.group(1))})
+            pos = m.end()
+        out.append(text[pos:])
+        text = "".join(out)
         if len(text) < 200:
             continue
-        chapters.append({"title": title or f"Chapter {len(chapters)+1}", "text": text})
+
+        ch_images = []
+        for img in images:
+            src = img_srcs[img["k"]]
+            if not src:
+                continue
+            try:
+                rel = posixpath.normpath(posixpath.join(posixpath.dirname(item.get_name()), src))
+                real = zip_names.get(rel.lower()) or zip_names.get(src.lstrip("./").lower())
+                if not real:
+                    continue
+                os.makedirs(img_dir, exist_ok=True)
+                fname = f"d{i:03d}_{os.path.basename(real)}"
+                dst = os.path.join(img_dir, fname)
+                if not os.path.exists(dst):
+                    with open(dst, "wb") as f:
+                        f.write(z.read(real))
+                ch_images.append({"char": img["char"], "file": fname})
+            except Exception:
+                continue
+
+        chapters.append({"title": title or f"Chapter {len(chapters)+1}", "text": text, "images": ch_images})
         progress("extract", (i + 1) / len(docs), f"Reading text {i+1}/{len(docs)}")
     return chapters
 

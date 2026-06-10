@@ -814,7 +814,7 @@ select option { background: var(--card); color: var(--text); }
   to { opacity: 1; transform: translateX(0); }
 }
 .reader-page {
-  height: clamp(300px, 52vh, 540px);
+  height: clamp(360px, 64vh, 700px);
   overflow: hidden;
   padding: 18px 24px 8px;
   font-family: var(--font-reader), Georgia, serif;
@@ -825,6 +825,27 @@ select option { background: var(--card); color: var(--text); }
 }
 .reader-para { margin: 0 0 0.95em; text-indent: 1.4em; }
 .reader-para:first-child { text-indent: 0; }
+
+/* Illustration pages: the scan framed like a plate in a printed book */
+.reader-page-art { display: grid; place-items: center; padding: 16px; }
+.reader-page-art img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 14px 34px -18px rgba(0, 0, 0, 0.55), 0 0 0 4px var(--well);
+}
+
+/* Speaker labels (`Subaru:`) open dialogue paragraphs in gold */
+.reader-speaker {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--primary);
+  margin-right: 3px;
+}
 
 .reader-sentence {
   cursor: pointer;

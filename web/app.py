@@ -61,11 +61,17 @@ def save_status(job):
         pass
 
 
+TEXT_CACHE_VERSION = 2   # bump when extraction output changes shape/content
+
+
 def save_chapters_text(job_dir, chapters):
-    """The narrated text, persisted for the read-along reader."""
+    """The narrated text (+ illustration anchors), persisted for the reader."""
     try:
+        payload = {"v": TEXT_CACHE_VERSION, "chapters": [
+            {"title": c["title"], "text": c["text"], "images": c.get("images", [])}
+            for c in chapters]}
         with open(os.path.join(job_dir, "chapters_text.json"), "w", encoding="utf-8") as f:
-            json.dump([{"title": c["title"], "text": c["text"]} for c in chapters], f)
+            json.dump(payload, f)
     except Exception:
         pass
 
@@ -215,6 +221,7 @@ def _align_text_to_audio(chapters, audio_titles):
         return chapters
     norm_audio = [_norm_title(t) for t in audio_titles]
     texts = [""] * len(audio_titles)
+    images = [[] for _ in audio_titles]
     cur, matched = 0, set()
     for c in chapters:
         nt = _norm_title(c.get("title", ""))
@@ -229,10 +236,16 @@ def _align_text_to_audio(chapters, audio_titles):
         if hit is not None:
             cur = hit
             matched.add(hit)
+        # Folding a fragment shifts its char offsets by the text already
+        # in the bucket (+1 for the joining space).
+        base = len(texts[cur]) + 1 if texts[cur] else 0
+        for img in c.get("images", []):
+            images[cur].append({"char": base + img.get("char", 0), "file": img.get("file", "")})
         texts[cur] = (texts[cur] + " " + c["text"]).strip() if texts[cur] else c["text"]
     if len(matched) < max(1, len(audio_titles) // 2):
         return chapters
-    return [{"title": audio_titles[i], "text": texts[i]} for i in range(len(audio_titles))]
+    return [{"title": audio_titles[i], "text": texts[i], "images": images[i]}
+            for i in range(len(audio_titles))]
 
 
 def _build_text(jid):
@@ -273,17 +286,23 @@ def job_text(jid: str):
 
     text_path = os.path.join(j["dir"], "chapters_text.json")
     if os.path.exists(text_path):
-        with open(text_path, "r", encoding="utf-8") as f:
-            chapters = json.load(f)
-        timing = None
-        timing_path = os.path.join(j["dir"], "timing.json")
-        if os.path.exists(timing_path):
-            try:
-                with open(timing_path, "r", encoding="utf-8") as f:
-                    timing = json.load(f)
-            except Exception:
-                timing = None
-        return JSONResponse({"chapters": chapters, "timing": timing})
+        try:
+            with open(text_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except Exception:
+            data = None
+        # Old/stale cache shapes (the v1 bare list, pre-illustrations)
+        # fall through to a rebuild instead of being served.
+        if isinstance(data, dict) and data.get("v") == TEXT_CACHE_VERSION:
+            timing = None
+            timing_path = os.path.join(j["dir"], "timing.json")
+            if os.path.exists(timing_path):
+                try:
+                    with open(timing_path, "r", encoding="utf-8") as f:
+                        timing = json.load(f)
+                except Exception:
+                    timing = None
+            return JSONResponse({"chapters": data["chapters"], "timing": timing})
 
     b = text_builds.get(jid)
     if b and b["state"] == "error":
@@ -376,6 +395,20 @@ def resume_job(jid: str):
 # separators, dots) is rejected before touching the filesystem.
 VOICE_ID_RE = re.compile(r"^[a-z]{2}_[a-z0-9]+$")
 AMBIANCE_NAMES = {"rain", "fire"}
+PAGE_IMAGE_RE = re.compile(r"^[A-Za-z0-9._-]+\.(jpg|jpeg|png)$", re.I)
+
+
+@app.get("/api/job/{jid}/page-image/{name}")
+def page_image(jid: str, name: str):
+    """Illustration scans referenced by the read-along reader."""
+    j = jobs.get(jid)
+    if not j or not PAGE_IMAGE_RE.match(name) or ".." in name:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    path = os.path.normpath(os.path.join(j["dir"], "_images", name))
+    if not path.startswith(os.path.normpath(j["dir"])) or not os.path.exists(path):
+        return JSONResponse({"error": "not found"}, status_code=404)
+    media = "image/png" if name.lower().endswith(".png") else "image/jpeg"
+    return FileResponse(path, media_type=media)
 
 
 @app.get("/voice-sample/{vid}")

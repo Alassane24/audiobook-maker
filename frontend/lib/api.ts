@@ -64,7 +64,7 @@ export async function resumeJob(id: string): Promise<void> {
 }
 
 export interface BookTextResponse {
-  chapters?: { title: string; text: string }[];
+  chapters?: { title: string; text: string; images?: { char: number; file: string }[] }[];
   timing?: ([number, number][] | null)[] | null;
   building?: boolean;
   progress?: number;
