@@ -272,7 +272,7 @@ def _build_text(jid):
         audio_titles = [c.get("title", "") for c in (j.get("chapters_info") or [])]
         chapters = _align_text_to_audio(chapters, audio_titles)
         save_chapters_text(j["dir"], chapters)
-        del text_builds[jid]
+        text_builds.pop(jid, None)
     except Exception as e:
         b["state"] = "error"
         b["message"] = str(e)
@@ -307,7 +307,7 @@ def job_text(jid: str):
     b = text_builds.get(jid)
     if b and b["state"] == "error":
         msg = b["message"]
-        del text_builds[jid]   # allow retry on the next request
+        text_builds.pop(jid, None)   # allow retry on the next request
         return JSONResponse({"error": msg}, status_code=500)
     if not b:
         text_builds[jid] = {"state": "building", "progress": 0.0, "message": "Starting…"}

@@ -211,13 +211,20 @@ def run_ocr(epub_path, work, progress):
                 for c in state["chapters"] if c["lines"]]
     story = [c for c in chapters
              if re.match(r"(Arc\s*\d+\s*)?Chapter|Prologue|Epilogue", c["title"], re.I) and len(c["text"]) > 1500]
-    if story and story is not chapters:
-        # Art belonging to dropped front-matter chapters re-anchors to the
-        # start of the first kept chapter so it isn't lost.
+    if story:
+        # Art belonging to dropped chapters re-anchors to the nearest kept
+        # chapter before it (front-matter art lands at the start of the
+        # first kept chapter) so nothing is lost or teleported.
         kept = {id(c) for c in story}
-        orphans = [img["file"] for c in chapters if id(c) not in kept for img in c.get("images", [])]
-        if orphans:
-            story[0].setdefault("images", [])[:0] = [{"char": 0, "file": f} for f in orphans]
+        last_kept = None
+        for c in chapters:
+            if id(c) in kept:
+                last_kept = c
+            elif c.get("images"):
+                target = last_kept or story[0]
+                anchor = len(target["text"]) if last_kept else 0
+                target.setdefault("images", []).extend(
+                    {"char": anchor, "file": img["file"]} for img in c["images"])
     return story or chapters  # fall back to all if no Arc/Chapter scheme
 
 # ---------------------------------------------------------------- text path
@@ -230,6 +237,7 @@ def run_text(epub_path, work, progress):
     zip_names = {n.lower(): n for n in z.namelist()}
     img_dir = os.path.join(work, "_images")
     chapters = []
+    pending_imgs = []   # art from image-only docs, carried to the next chapter
     docs = list(book.get_items_of_type(ITEM_DOCUMENT))
     for i, item in enumerate(docs):
         soup = BeautifulSoup(item.get_content(), "html.parser")
@@ -257,8 +265,6 @@ def run_text(epub_path, work, progress):
             pos = m.end()
         out.append(text[pos:])
         text = "".join(out)
-        if len(text) < 200:
-            continue
 
         ch_images = []
         for img in images:
@@ -280,8 +286,21 @@ def run_text(epub_path, work, progress):
             except Exception:
                 continue
 
-        chapters.append({"title": title or f"Chapter {len(chapters)+1}", "text": text, "images": ch_images})
+        if len(text) < 200:
+            # Insert-art pages ship as image-only docs in text epubs; the
+            # doc is skipped but its art carries to the next real chapter.
+            pending_imgs.extend({"char": 0, "file": im["file"]} for im in ch_images)
+            continue
+
+        chapters.append({"title": title or f"Chapter {len(chapters)+1}", "text": text,
+                         "images": pending_imgs + ch_images})
+        pending_imgs = []
         progress("extract", (i + 1) / len(docs), f"Reading text {i+1}/{len(docs)}")
+    if pending_imgs and chapters:
+        # Trailing art (after the last chapter) pins to the end of the book.
+        last = chapters[-1]
+        last["images"] = last.get("images", []) + [
+            {"char": len(last["text"]), "file": im["file"]} for im in pending_imgs]
     return chapters
 
 # ---------------------------------------------------------------- cover
