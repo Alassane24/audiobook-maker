@@ -22,11 +22,15 @@ export const viewport: Viewport = {
 
 // Runs before first paint so the saved theme never flashes. Keeps the
 // legacy localStorage key/values from the old inline UI; the retired
-// neon themes (midnight/crimson/matcha) collapse to dark.
+// neon themes (midnight/crimson/matcha) collapse to dark. classList
+// surgery only — a whole-className assignment would strip the next/font
+// variable classes off <html> and take the custom fonts down with them.
 const themeScript = `
 (function () {
   var t = localStorage.getItem("theme");
-  document.documentElement.className = t === "theme-light" ? "theme-light" : "theme-dark";
+  var el = document.documentElement;
+  el.classList.remove("theme-dark", "theme-light");
+  el.classList.add(t === "theme-light" ? "theme-light" : "theme-dark");
 })();
 `;
 

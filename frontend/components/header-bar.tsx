@@ -18,7 +18,8 @@ export function HeaderBar() {
   function toggle() {
     const next = theme === "theme-dark" ? "theme-light" : "theme-dark";
     const el = document.documentElement;
-    el.className = el.className.replace(/theme-(dark|light)/, next);
+    el.classList.remove("theme-dark", "theme-light");
+    el.classList.add(next);
     localStorage.setItem("theme", next);
     setTheme(next);
   }

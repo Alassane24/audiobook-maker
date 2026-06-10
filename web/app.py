@@ -249,8 +249,16 @@ def resume_job(jid: str):
 
 
 # ----------------------------------------------------------------- media
+# Kokoro voice ids look like af_heart / bm_george; anything else (path
+# separators, dots) is rejected before touching the filesystem.
+VOICE_ID_RE = re.compile(r"^[a-z]{2}_[a-z0-9]+$")
+AMBIANCE_NAMES = {"rain", "fire"}
+
+
 @app.get("/voice-sample/{vid}")
 def voice_sample(vid: str):
+    if not VOICE_ID_RE.match(vid):
+        return JSONResponse({"error": "not found"}, status_code=404)
     path = os.path.join(BASE, "..", "samples", "voices", f"{vid}.wav")
     if not os.path.exists(path):
         return JSONResponse({"error": "not found"}, status_code=404)
@@ -292,6 +300,8 @@ def stream(jid: str):
 
 @app.get("/ambiance/{name}")
 def get_ambiance(name: str):
+    if name not in AMBIANCE_NAMES:
+        return HTMLResponse("Not found", 404)
     path = os.path.join(BASE, "..", "ambiance", f"{name}.wav")
     if os.path.exists(path):
         return FileResponse(path, media_type="audio/wav")
