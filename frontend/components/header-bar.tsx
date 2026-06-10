@@ -2,23 +2,50 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BrandIcon, MoonIcon, SunIcon } from "./icons";
+import { BrandIcon, MoonIcon, MoonStarIcon, SunIcon } from "./icons";
 
-function currentTheme(): "theme-dark" | "theme-light" {
+type Theme = "theme-dark" | "theme-light" | "theme-night";
+
+// Cycle order goes darker each tap, then back around to light.
+const NEXT: Record<Theme, Theme> = {
+  "theme-light": "theme-dark",
+  "theme-dark": "theme-night",
+  "theme-night": "theme-light",
+};
+
+const NEXT_LABEL: Record<Theme, string> = {
+  "theme-light": "Switch to dark theme",
+  "theme-dark": "Switch to night theme (true black)",
+  "theme-night": "Switch to light theme",
+};
+
+// The button shows the theme you'll GET by pressing it.
+function nextIcon(theme: Theme) {
+  switch (NEXT[theme]) {
+    case "theme-light": return <SunIcon />;
+    case "theme-dark": return <MoonIcon />;
+    case "theme-night": return <MoonStarIcon />;
+  }
+}
+
+function currentTheme(): Theme {
   if (typeof document === "undefined") return "theme-dark";
-  return document.documentElement.className.includes("theme-light") ? "theme-light" : "theme-dark";
+  const cl = document.documentElement.classList;
+  if (cl.contains("theme-light")) return "theme-light";
+  if (cl.contains("theme-night")) return "theme-night";
+  return "theme-dark";
 }
 
 export function HeaderBar() {
   // Theme lives on <html> (set pre-paint by the layout script); this
   // state only drives which toggle icon shows, so sync it after mount.
-  const [theme, setTheme] = useState<"theme-dark" | "theme-light">("theme-dark");
+  const [theme, setTheme] = useState<Theme>("theme-dark");
   useEffect(() => setTheme(currentTheme()), []);
 
-  function toggle() {
-    const next = theme === "theme-dark" ? "theme-light" : "theme-dark";
+  function cycle() {
+    const next = NEXT[theme];
     const el = document.documentElement;
-    el.classList.remove("theme-dark", "theme-light");
+    el.classList.remove("theme-dark", "theme-light", "theme-night");
     el.classList.add(next);
     localStorage.setItem("theme", next);
     setTheme(next);
@@ -35,11 +62,11 @@ export function HeaderBar() {
       <button
         type="button"
         className="theme-btn"
-        onClick={toggle}
-        aria-label={theme === "theme-dark" ? "Switch to light theme" : "Switch to dark theme"}
-        title={theme === "theme-dark" ? "Switch to light theme" : "Switch to dark theme"}
+        onClick={cycle}
+        aria-label={NEXT_LABEL[theme]}
+        title={NEXT_LABEL[theme]}
       >
-        {theme === "theme-dark" ? <SunIcon /> : <MoonIcon />}
+        {nextIcon(theme)}
       </button>
     </header>
   );

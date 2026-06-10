@@ -31,8 +31,8 @@ const themeScript = `
 (function () {
   var t = localStorage.getItem("theme");
   var el = document.documentElement;
-  el.classList.remove("theme-dark", "theme-light");
-  el.classList.add(t === "theme-light" ? "theme-light" : "theme-dark");
+  el.classList.remove("theme-dark", "theme-light", "theme-night");
+  el.classList.add(t === "theme-light" || t === "theme-night" ? t : "theme-dark");
 })();
 `;
 

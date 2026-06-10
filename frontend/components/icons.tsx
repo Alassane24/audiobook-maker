@@ -105,6 +105,17 @@ export function MoonIcon(props: React.SVGProps<SVGSVGElement>) {
   );
 }
 
+// Moon with stars: the lights-off night theme.
+export function MoonStarIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M17 12.79A7.5 7.5 0 1 1 8.71 4.5 5.8 5.8 0 0 0 17 12.79z" />
+      <path d="M19 3v4M17 5h4" />
+      <path d="M21.5 10.5v2.5M20.25 11.75h2.5" />
+    </svg>
+  );
+}
+
 export function BookOpenIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>

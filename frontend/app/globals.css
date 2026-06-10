@@ -37,6 +37,34 @@
   --grain-opacity: 0.05;
 }
 
+/* Night — the lights-off mode. True black for OLED (pixels actually
+   off), everything dimmed: night reading wants less luminance, not just
+   a dark background. Atmosphere gradients and grain are nearly gone so
+   the page stays genuinely black. Contrast still ≥ 4.5:1 throughout. */
+.theme-night {
+  --bg: #000000;
+  --card: #0b0a07;
+  --card-raised: #100f0b;
+  --text: #d9cfae;
+  --text-muted: #8a8468;
+  --primary: #bb963f;
+  --on-primary: #0d0c07;
+  --primary-soft: rgba(187, 150, 63, 0.09);
+  --accent: #cfa84f;
+  --glow: rgba(187, 150, 63, 0.16);
+  --border: rgba(187, 150, 63, 0.16);
+  --border-faint: rgba(187, 150, 63, 0.09);
+  --well: rgba(255, 248, 225, 0.03);
+  --grad-1: rgba(187, 150, 63, 0.04);
+  --grad-2: transparent;
+  --ok: #2fae7e;
+  --warn: #d9a323;
+  --danger: #e05d5d;
+  --danger-soft: rgba(224, 93, 93, 0.08);
+  --shadow-card: inset 0 0 0 1px rgba(187, 150, 63, 0.05);
+  --grain-opacity: 0.02;
+}
+
 .theme-light {
   --bg: #efe6cd;
   --card: #f8f1dd;
