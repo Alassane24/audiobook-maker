@@ -1,7 +1,15 @@
 # Python
 .venv/
+.venv-clone/
+.venv-f5/
 __pycache__/
 *.pyc
+
+# Tier-2 voice cloning: reference clips (copyrighted) + setup log
+voice-refs/
+clone-setup.log
+
+# Frontend (frontend/.gitignore covers node_modules/.next; out/ IS committed)
 
 # Per-run job artifacts & generated audio (large, regenerated each run)
 web/jobs/

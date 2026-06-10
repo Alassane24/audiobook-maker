@@ -1,0 +1,6 @@
+# dependencies & build intermediates (out/ IS committed — the boot-time
+# server serves it directly, so the deployable export must live in git)
+/node_modules
+/.next
+*.tsbuildinfo
+next-env.d.ts
