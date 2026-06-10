@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Marcellus, Jost } from "next/font/google";
+import { Marcellus, Jost, Newsreader } from "next/font/google";
 import "./globals.css";
 
 // Self-hosted at build time by next/font — no Google Fonts request at
@@ -7,6 +7,8 @@ import "./globals.css";
 // sometimes from networks that are slow or blocked.
 const marcellus = Marcellus({ weight: "400", subsets: ["latin"], variable: "--font-display" });
 const jost = Jost({ weight: ["300", "400", "500", "600", "700"], subsets: ["latin"], variable: "--font-body" });
+// The read-along page is long-form book text; it gets a real text serif.
+const newsreader = Newsreader({ weight: ["400", "500"], subsets: ["latin"], variable: "--font-reader" });
 
 export const metadata: Metadata = {
   title: "Audiobook Maker",
@@ -36,7 +38,7 @@ const themeScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`theme-dark ${marcellus.variable} ${jost.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`theme-dark ${marcellus.variable} ${jost.variable} ${newsreader.variable}`} suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <div className="grain" aria-hidden="true" />

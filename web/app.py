@@ -61,6 +61,15 @@ def save_status(job):
         pass
 
 
+def save_chapters_text(job_dir, chapters):
+    """The narrated text, persisted for the read-along reader."""
+    try:
+        with open(os.path.join(job_dir, "chapters_text.json"), "w", encoding="utf-8") as f:
+            json.dump([{"title": c["title"], "text": c["text"]} for c in chapters], f)
+    except Exception:
+        pass
+
+
 # Each phase maps onto a slice of the single 0..1 progress bar, so it only
 # ever moves forward (OCR/extract = first third, narration = the rest).
 PHASE_RANGE = {
@@ -106,10 +115,17 @@ def worker():
             if not chapters:
                 raise RuntimeError("No readable text found in this epub.")
             job["chapters_total"] = len(chapters)
+            save_chapters_text(job["dir"], chapters)
 
             cover = pipeline.get_cover(job["epub"], job["dir"], mode)
+            marks = []
             durations = pipeline.synth_book(chapters, job["voice"], job["dir"], cb,
-                                            speed=job["speed"])
+                                            speed=job["speed"], marks_out=marks)
+            try:
+                with open(os.path.join(job["dir"], "timing.json"), "w", encoding="utf-8") as tf:
+                    json.dump(marks, tf)
+            except Exception:
+                pass
 
             t = 0.0
             ch_info = []
@@ -173,6 +189,113 @@ def api_job(jid: str):
     if not j:
         return JSONResponse({"error": "not found"}, status_code=404)
     return JSONResponse({k: v for k, v in j.items() if k != "dir"})
+
+
+# ------------------------------------------------- read-along text
+# Books rendered before the reader existed have no chapters_text.json.
+# First /text request kicks a one-time background rebuild from the job's
+# stored epub (re-OCR for scanned books — minutes; instant for text epubs)
+# and the endpoint reports 202 + progress until the cache lands.
+text_builds = {}   # jid -> {"state": "building"|"error", "progress": float, "message": str}
+
+
+def _norm_title(s):
+    s = re.sub(r"[=;#\\]", " ", s or "")   # the mux writes titles with these stripped
+    return re.sub(r"\s+", " ", s).strip().casefold()
+
+
+def _align_text_to_audio(chapters, audio_titles):
+    """Re-bucket freshly extracted text chapters to match the audiobook's
+    chapter list. Cleaning rules evolve between renders, so a re-extraction
+    can split chapters the audio merged, invent fragments from OCR noise,
+    or glue prose onto a title. Titles are matched normalized (exact or
+    prefix, forward-only); unmatched fragments fold into the current
+    bucket. Falls back to the raw extraction if too little matches."""
+    if not audio_titles:
+        return chapters
+    norm_audio = [_norm_title(t) for t in audio_titles]
+    texts = [""] * len(audio_titles)
+    cur, matched = 0, set()
+    for c in chapters:
+        nt = _norm_title(c.get("title", ""))
+        hit = None
+        for i in range(cur, len(norm_audio)):
+            na = norm_audio[i]
+            if not na or not nt:
+                continue
+            if nt == na or (min(len(nt), len(na)) >= 12 and (nt.startswith(na) or na.startswith(nt))):
+                hit = i
+                break
+        if hit is not None:
+            cur = hit
+            matched.add(hit)
+        texts[cur] = (texts[cur] + " " + c["text"]).strip() if texts[cur] else c["text"]
+    if len(matched) < max(1, len(audio_titles) // 2):
+        return chapters
+    return [{"title": audio_titles[i], "text": texts[i]} for i in range(len(audio_titles))]
+
+
+def _build_text(jid):
+    j = jobs.get(jid)
+    b = text_builds[jid]
+    try:
+        if not j:
+            raise RuntimeError("Job no longer exists.")
+        epub_path = j.get("epub", "")
+        if not os.path.exists(epub_path):
+            raise RuntimeError("Original epub no longer exists for this job.")
+        mode = j.get("mode") or pipeline.detect_mode(epub_path)
+
+        def cb(phase, frac, message):
+            b["progress"] = round(max(0.0, min(frac, 1.0)), 3)
+            b["message"] = message
+
+        if mode == "ocr":
+            chapters = pipeline.run_ocr(epub_path, j["dir"], cb)
+        else:
+            chapters = pipeline.run_text(epub_path, j["dir"], cb)
+        if not chapters:
+            raise RuntimeError("No readable text found in this epub.")
+        audio_titles = [c.get("title", "") for c in (j.get("chapters_info") or [])]
+        chapters = _align_text_to_audio(chapters, audio_titles)
+        save_chapters_text(j["dir"], chapters)
+        del text_builds[jid]
+    except Exception as e:
+        b["state"] = "error"
+        b["message"] = str(e)
+
+
+@app.get("/api/job/{jid}/text")
+def job_text(jid: str):
+    j = jobs.get(jid)
+    if not j:
+        return JSONResponse({"error": "not found"}, status_code=404)
+
+    text_path = os.path.join(j["dir"], "chapters_text.json")
+    if os.path.exists(text_path):
+        with open(text_path, "r", encoding="utf-8") as f:
+            chapters = json.load(f)
+        timing = None
+        timing_path = os.path.join(j["dir"], "timing.json")
+        if os.path.exists(timing_path):
+            try:
+                with open(timing_path, "r", encoding="utf-8") as f:
+                    timing = json.load(f)
+            except Exception:
+                timing = None
+        return JSONResponse({"chapters": chapters, "timing": timing})
+
+    b = text_builds.get(jid)
+    if b and b["state"] == "error":
+        msg = b["message"]
+        del text_builds[jid]   # allow retry on the next request
+        return JSONResponse({"error": msg}, status_code=500)
+    if not b:
+        text_builds[jid] = {"state": "building", "progress": 0.0, "message": "Starting…"}
+        threading.Thread(target=_build_text, args=(jid,), daemon=True).start()
+    b = text_builds.get(jid) or {"progress": 1.0, "message": "Finishing…"}
+    return JSONResponse({"building": True, "progress": b.get("progress", 0.0),
+                         "message": b.get("message", "")}, status_code=202)
 
 
 @app.post("/upload")
@@ -309,16 +432,40 @@ def get_ambiance(name: str):
 
 
 # ----------------------------------------------------------------- frontend
+JOB_ID_RE = re.compile(r"^[0-9a-f]{8,12}$")
+
+
 @app.get("/job/{jid}")
 def legacy_job_page(jid: str):
-    """Old bookmark/deep-link format → the exported job page."""
-    return RedirectResponse(url=f"/job/?id={jid}", status_code=302)
+    """Old bookmark/deep-link format /job/<hexid> → the exported job page.
+
+    Anything else under /job/ belongs to the static export — most
+    importantly Next's RSC navigation payload /job/index.txt, which this
+    route would otherwise hijack and break client-side navigation.
+    """
+    if JOB_ID_RE.match(jid):
+        return RedirectResponse(url=f"/job/?id={jid}", status_code=302)
+    path = os.path.normpath(os.path.join(FRONTEND_OUT, "job", jid))
+    if path.startswith(FRONTEND_OUT) and os.path.isfile(path):
+        media = "text/x-component" if path.endswith(".txt") else None
+        return FileResponse(path, media_type=media)
+    return HTMLResponse("Not found", status_code=404)
 
 
 if os.path.isdir(FRONTEND_OUT):
+    # Next's exported RSC payloads are .txt files; the router only treats
+    # a response as a client-side navigation payload when it arrives as
+    # text/x-component, otherwise every tap degrades to a full reload.
+    class FrontendFiles(StaticFiles):
+        def file_response(self, full_path, stat_result, scope, status_code=200):
+            resp = super().file_response(full_path, stat_result, scope, status_code)
+            if str(full_path).endswith(".txt"):
+                resp.headers["content-type"] = "text/x-component"
+            return resp
+
     # Mounted last so every /api, /upload, /stream… route above wins first.
     # html=True serves index.html for / and job/index.html for /job/.
-    app.mount("/", StaticFiles(directory=FRONTEND_OUT, html=True), name="frontend")
+    app.mount("/", FrontendFiles(directory=FRONTEND_OUT, html=True), name="frontend")
 else:
     @app.get("/", response_class=HTMLResponse)
     def missing_frontend():

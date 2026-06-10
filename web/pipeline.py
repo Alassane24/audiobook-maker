@@ -216,7 +216,13 @@ def _get_pipeline(lang):
     return _pipelines[lang]
 
 
-def synth_book(chapters, voice, work, progress, speed=1.0):
+def synth_book(chapters, voice, work, progress, speed=1.0, marks_out=None):
+    """Render each chapter to wav. If marks_out is a list, append one entry
+    per chapter: a list of [char_end, t_end] pairs recording where each
+    Kokoro chunk ends in the chapter text and in the chapter audio — the
+    read-along reader uses these for precise text/audio sync. A chapter
+    resumed from a cached wav gets None (no way to recover its timing).
+    """
     n = len(chapters)
     progress("tts", 0.0, "Loading voice model…")
     pipe = _get_pipeline(voice[0])      # first call loads the model (a few sec)
@@ -227,11 +233,21 @@ def synth_book(chapters, voice, work, progress, speed=1.0):
         # report as the chapter STARTS so the bar never looks frozen
         progress("tts", i / n, f"Narrating chapter {i+1}/{n}: {c['title']}")
         out = os.path.join(wav_dir, f"ch{i:03d}.wav")
+        ch_marks = None
         if not os.path.exists(out):
-            parts = [a for _, _, a in pipe(c["text"], voice=voice, speed=speed)]
+            parts, ch_marks, cursor, t = [], [], 0, 0.0
+            for gs, _, a in pipe(c["text"], voice=voice, speed=speed):
+                parts.append(a)
+                t += len(a) / SR
+                g = (gs or "").strip()
+                idx = c["text"].find(g, cursor) if g else -1
+                cursor = idx + len(g) if idx >= 0 else min(cursor + len(gs or ""), len(c["text"]))
+                ch_marks.append([cursor, round(t, 3)])
             audio = np.concatenate(parts) if parts else np.zeros(SR, dtype="float32")
             sf.write(out, audio, SR)
         durations.append((c["title"], out, sf.info(out).frames / SR))
+        if marks_out is not None:
+            marks_out.append(ch_marks)
     return durations
 
 # ---------------------------------------------------------------- mux

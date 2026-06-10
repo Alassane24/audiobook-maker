@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fmtTime, type ChapterInfo } from "@/lib/api";
-import { PauseIcon, PlayIcon, Skip15Back, Skip15Fwd } from "./icons";
+import { BookOpenIcon, ListIcon, PauseIcon, PlayIcon, Skip15Back, Skip15Fwd } from "./icons";
 import { Sunburst } from "./sunburst";
+import { ReadAlong } from "./read-along";
 
 interface Props {
   jobId: string;
@@ -16,6 +17,7 @@ export function DecoPlayer({ jobId, chapters }: Props) {
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [view, setView] = useState<"chapters" | "reader">("chapters");
 
   // Active chapter follows the playhead: the last chapter whose start
   // we've passed. -1 before metadata loads.
@@ -26,12 +28,12 @@ export function DecoPlayer({ jobId, chapters }: Props) {
   }
 
   useEffect(() => {
-    if (active < 0 || !listRef.current) return;
+    if (view !== "chapters" || active < 0 || !listRef.current) return;
     const row = listRef.current.children[active] as HTMLElement | undefined;
     if (!row) return;
     const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     row.scrollIntoView({ block: "nearest", behavior: smooth ? "smooth" : "auto" });
-  }, [active]);
+  }, [active, view]);
 
   function toggle() {
     const a = audioRef.current;
@@ -102,24 +104,49 @@ export function DecoPlayer({ jobId, chapters }: Props) {
           />
           <span className="time-readout right">{fmtTime(duration)}</span>
         </div>
+
+        <div className="view-toggle" role="tablist" aria-label="Player view">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "chapters"}
+            className={`view-tab${view === "chapters" ? " sel" : ""}`}
+            onClick={() => setView("chapters")}
+          >
+            <ListIcon /> Chapters
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "reader"}
+            className={`view-tab${view === "reader" ? " sel" : ""}`}
+            onClick={() => setView("reader")}
+          >
+            <BookOpenIcon /> Read along
+          </button>
+        </div>
       </div>
 
-      {chapters.length > 0 && (
-        <div className="ch-list" ref={listRef} role="list" aria-label="Chapters">
-          {chapters.map((ch, i) => (
-            <button
-              key={i}
-              type="button"
-              role="listitem"
-              className={`ch-row${i === active ? " active" : ""}`}
-              onClick={() => seekTo(ch.start)}
-              aria-label={`Play ${ch.title} from ${fmtTime(ch.start)}`}
-            >
-              <span className="ch-time">{fmtTime(ch.start)}</span>
-              <span className="ch-title">{ch.title}</span>
-            </button>
-          ))}
-        </div>
+      {view === "reader" ? (
+        <ReadAlong jobId={jobId} chapters={chapters} time={time} duration={duration} onSeek={seekTo} />
+      ) : (
+        chapters.length > 0 && (
+          <div className="ch-list" ref={listRef} role="list" aria-label="Chapters">
+            {chapters.map((ch, i) => (
+              <button
+                key={i}
+                type="button"
+                role="listitem"
+                className={`ch-row${i === active ? " active" : ""}`}
+                onClick={() => seekTo(ch.start)}
+                aria-label={`Play ${ch.title} from ${fmtTime(ch.start)}`}
+              >
+                <span className="ch-time">{fmtTime(ch.start)}</span>
+                <span className="ch-title">{ch.title}</span>
+              </button>
+            ))}
+          </div>
+        )
       )}
     </div>
   );

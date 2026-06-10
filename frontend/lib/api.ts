@@ -63,6 +63,25 @@ export async function resumeJob(id: string): Promise<void> {
   await fetch(`/api/job/${encodeURIComponent(id)}/resume`, { method: "POST" });
 }
 
+export interface BookTextResponse {
+  chapters?: { title: string; text: string }[];
+  timing?: ([number, number][] | null)[] | null;
+  building?: boolean;
+  progress?: number;
+  message?: string;
+  error?: string;
+}
+
+// 200 = text ready; 202 = one-time rebuild running (poll again);
+// anything else throws.
+export async function fetchJobText(id: string): Promise<BookTextResponse> {
+  const r = await fetch(`/api/job/${encodeURIComponent(id)}/text`, { cache: "no-store" });
+  if (r.status === 200 || r.status === 202) return r.json();
+  let detail = "";
+  try { detail = (await r.json()).error ?? ""; } catch { /* not json */ }
+  throw new Error(detail || `Text unavailable (${r.status})`);
+}
+
 export interface UploadOptions {
   file: File;
   voice: string;
