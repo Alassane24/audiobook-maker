@@ -32,3 +32,4 @@ samples/*.jpg
 # OS
 Thumbs.db
 .DS_Store
+*.lnk
