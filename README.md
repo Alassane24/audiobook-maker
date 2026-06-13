@@ -30,7 +30,7 @@ This is a personal tool, tuned to one PC, so there is no installer. To stand it 
 
 There is no authentication, so bind it to an interface you trust.
 
-Frontend development needs Node: `npm --prefix frontend install` once, then `npm --prefix frontend run dev` for the dev loop and `npm --prefix frontend run build` to refresh `frontend/out/` before committing. Working notes for the whole project live in `AGENTS.md` and `PROJECT_MEMORY.md`.
+Frontend development needs Node: `npm --prefix frontend install` once, then `npm --prefix frontend run dev` for the dev loop and `npm --prefix frontend run build` to refresh `frontend/out/` before committing.
 
 ## Samples
 
