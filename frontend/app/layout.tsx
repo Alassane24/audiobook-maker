@@ -10,12 +10,35 @@ const jost = Jost({ weight: ["300", "400", "500", "600", "700"], subsets: ["lati
 // The read-along page is long-form book text; it gets a real text serif.
 const newsreader = Newsreader({ weight: ["400", "500"], subsets: ["latin"], variable: "--font-reader" });
 
+// PWA install metadata. Static icon/manifest files (in public/, copied to
+// out/ at build) with explicit root-absolute hrefs — the clean path that a
+// plain static server (our FastAPI StaticFiles) serves without query-string
+// or route quirks. On iOS the apple-touch-icon is what actually shows on the
+// home screen; the manifest covers Android/Chrome. "Audire" is the launcher
+// name (apple-mobile-web-app-title + manifest short_name).
 export const metadata: Metadata = {
-  title: "Audiobook Maker",
+  applicationName: "Audire",
+  title: "Audire — Audiobook Maker",
   description: "Drop in an EPUB, pick a voice, and get a beautifully narrated audiobook.",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: { capable: true, title: "Audire", statusBarStyle: "black-translucent" },
+  // Next 15 emits the modern mobile-web-app-capable from appleWebApp.capable;
+  // older iOS Safari still needs the legacy apple- name to launch standalone.
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {
+  // cover = draw under the status bar/notch; paired with safe-area padding in
+  // globals.css so the masthead never hides behind the clock in standalone.
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: dark)", color: "#0d1f17" },
     { media: "(prefers-color-scheme: light)", color: "#efe6cd" },

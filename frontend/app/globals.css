@@ -127,7 +127,9 @@ body {
 .container {
   max-width: 800px;
   margin: 0 auto;
-  padding: 44px 24px calc(90px + env(safe-area-inset-bottom));
+  /* top inset keeps the masthead clear of the status bar / Dynamic Island
+     when installed to the home screen (black-translucent + viewport-fit:cover). */
+  padding: calc(44px + env(safe-area-inset-top)) 24px calc(90px + env(safe-area-inset-bottom));
 }
 
 a { color: var(--primary); text-decoration: none; font-weight: 600; transition: color 0.2s; }
@@ -947,7 +949,7 @@ select option { background: var(--card); color: var(--text); }
 }
 
 @media (max-width: 600px) {
-  .container { padding: 28px 16px calc(70px + env(safe-area-inset-bottom)); }
+  .container { padding: calc(28px + env(safe-area-inset-top)) 16px calc(70px + env(safe-area-inset-bottom)); }
   .card { padding: 26px 20px; }
   .pills { flex-direction: column; }
   .transport { gap: 18px; }

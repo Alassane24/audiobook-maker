@@ -9,11 +9,16 @@ phone (Tailscale). Frontend dev mode: `npm --prefix frontend run dev`
 Run via web/start-audiobook-server.bat (sets ffmpeg PATH + binds host).
 No auto-reload: restart after editing this file.
 """
-import os, re, json, uuid, queue, shutil, threading, traceback, datetime, time
+import os, re, json, uuid, queue, shutil, threading, traceback, datetime, time, mimetypes
 
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+
+# Python's mimetypes doesn't know .webmanifest, so StaticFiles would serve the
+# PWA manifest as octet-stream and some browsers reject it. Register it before
+# the mount below so it ships as application/manifest+json.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 
 import pipeline
 
