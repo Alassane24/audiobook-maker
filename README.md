@@ -34,7 +34,7 @@ Frontend development needs Node: `npm --prefix frontend install` once, then `npm
 
 ## Samples
 
-The bundled test book, `samples/yellow-wallpaper.epub`, is "The Yellow Wallpaper" by Charlotte Perkins Gilman (1892), public domain. The WAV files under `samples/out/` are Kokoro narrations of it, and `samples/voices/` holds the voice preview clips.
+The bundled test book, `samples/yellow-wallpaper.epub`, is "The Yellow Wallpaper" by Charlotte Perkins Gilman (1892), public domain. The clips under `samples/voices/` are the bundled voice previews.
 
 ## Credits
 
