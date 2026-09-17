@@ -44,3 +44,6 @@ tessdata/
 
 # Timing-backfill run logs
 backfill-timing*.log
+
+# Machine-specific paths and addresses (see local.env.example)
+local.env

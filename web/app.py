@@ -20,12 +20,13 @@ from fastapi.staticfiles import StaticFiles
 # the mount below so it ships as application/manifest+json.
 mimetypes.add_type("application/manifest+json", ".webmanifest")
 
+import paths
 import pipeline
 
 BASE = os.path.dirname(os.path.abspath(__file__))
-JOBS_DIR = os.path.join(BASE, "jobs")
+JOBS_DIR = paths.JOBS_DIR
 FRONTEND_OUT = os.path.normpath(os.path.join(BASE, "..", "frontend", "out"))
-TRANSFER = r"D:\Transfer\Audiobooks"
+TRANSFER = paths.TRANSFER_DIR
 os.makedirs(JOBS_DIR, exist_ok=True)
 os.makedirs(TRANSFER, exist_ok=True)
 

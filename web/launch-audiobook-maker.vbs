@@ -5,9 +5,31 @@
 ' The desktop shortcut points here. Run with /dryrun:1 to test without opening anything.
 Option Explicit
 
-' Tailscale IP on purpose — the server doesn't bind localhost (see AGENTS.md).
-Const BASE = "http://100.69.165.27:8765"
-Const PROJ = "A:\Cowork\audiobooks"
+' Machine-specific values come from `local.env` at the repo root (gitignored).
+' See local.env.example. With no local.env this falls back to loopback and a
+' self-contained checkout - the same defaults web\paths.py uses.
+Dim fso0: Set fso0 = CreateObject("Scripting.FileSystemObject")
+Dim PROJ: PROJ = fso0.GetParentFolderName(fso0.GetParentFolderName(WScript.ScriptFullName))
+
+Function Cfg(key, fallback)
+  Cfg = fallback
+  Dim envPath: envPath = fso0.BuildPath(PROJ, "local.env")
+  If Not fso0.FileExists(envPath) Then Exit Function
+  Dim f: Set f = fso0.OpenTextFile(envPath, 1)
+  Do Until f.AtEndOfStream
+    Dim ln: ln = Trim(f.ReadLine)
+    If Len(ln) > 0 And Left(ln, 1) <> "#" And InStr(ln, "=") > 0 Then
+      If Trim(Left(ln, InStr(ln, "=") - 1)) = key Then
+        Dim v: v = Trim(Mid(ln, InStr(ln, "=") + 1))
+        v = Replace(Replace(v, Chr(34), ""), "'", "")
+        If Len(v) > 0 Then Cfg = v
+      End If
+    End If
+  Loop
+  f.Close
+End Function
+
+Dim BASE: BASE = "http://" & Cfg("AUDIOBOOK_HOST", "127.0.0.1") & ":" & Cfg("AUDIOBOOK_PORT", "8765")
 
 Dim PING: PING = BASE & "/api/jobs"
 Dim sh:  Set sh = CreateObject("WScript.Shell")
@@ -53,7 +75,7 @@ Next
 ' its OWN user-data-dir makes it a separate Chrome instance where the flag
 ' applies (and Chrome then remembers the maximised state); the clean profile
 ' also sidesteps the stale-HTML cache that kept the old layout showing.
-Const APP_PROFILE = "A:\Cowork\.audire-chrome-profile"
+Dim APP_PROFILE: APP_PROFILE = Cfg("AUDIOBOOK_CHROME_PROFILE", fso0.BuildPath(PROJ, ".chrome-profile"))
 Dim FLAGS: FLAGS = " --start-maximized --no-first-run --no-default-browser-check --user-data-dir=""" & APP_PROFILE & """"
 
 If dry Then

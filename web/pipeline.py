@@ -13,6 +13,8 @@ import pytesseract
 from PIL import Image, ImageOps
 from kokoro import KPipeline
 
+import paths
+
 pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 SR = 24000
 
@@ -107,17 +109,11 @@ def _alpha_ratio(s):
     return sum(c.isalpha() or c.isspace() for c in s) / max(len(s), 1)
 
 
-# Tesseract language data. The repo does not ship tessdata/ (it is fetched, not
-# authored), so use a copy beside the repo when one is there and otherwise let
-# Tesseract fall back to its own install. AUDIOBOOK_TESSDATA overrides both.
-_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TESSDATA_DIR = os.environ.get("AUDIOBOOK_TESSDATA") or os.path.join(_REPO_ROOT, "tessdata")
-_TESS_CONFIG = f'--tessdata-dir "{TESSDATA_DIR}"' if os.path.isdir(TESSDATA_DIR) else ""
 
 
 def _ocr_one(path):
     img = ImageOps.invert(Image.open(path).convert("L"))
-    return os.path.basename(path), pytesseract.image_to_string(img, lang="eng+jpn", config=_TESS_CONFIG)
+    return os.path.basename(path), pytesseract.image_to_string(img, lang="eng+jpn", config=paths.TESS_CONFIG)
 
 
 def _clean_page(raw, state):

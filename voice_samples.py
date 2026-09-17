@@ -1,9 +1,13 @@
 """Generate the same passage across several Kokoro voices for A/B comparison."""
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "web"))
+import paths
+
 import os
 import soundfile as sf
 from kokoro import KPipeline
 
-OUT = r"A:\Cowork\audiobooks\samples\voices"
+OUT = os.path.join(paths.SAMPLES_DIR, "voices")
 os.makedirs(OUT, exist_ok=True)
 
 # Narration + a line of dialogue, to test both reading styles.

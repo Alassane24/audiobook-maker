@@ -1,9 +1,13 @@
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "web"))
+import paths
+
 import os
 import json
 from mutagen.mp4 import MP4, Chapter
 
-JOBS_DIR = r"A:\Cowork\audiobooks\web\jobs"
-TRANSFER_DIR = r"C:\Users\Owner\Desktop\Transfer"
+JOBS_DIR = paths.JOBS_DIR
+TRANSFER_DIR = paths.TRANSFER_DIR
 
 for jid in os.listdir(JOBS_DIR):
     jpath = os.path.join(JOBS_DIR, jid)

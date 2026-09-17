@@ -1,6 +1,10 @@
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "web"))
+import paths
+
 import zipfile, re, sys
 
-path = r"A:\Cowork\Ebooks\Re-Zero-Web-Novel-Vol-23.epub"
+path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(paths.SAMPLES_DIR, "book.epub")
 z = zipfile.ZipFile(path)
 names = z.namelist()
 imgs = [n for n in names if re.search(r"\.(jpg|jpeg|png|gif|webp|svg)$", n, re.I)]
