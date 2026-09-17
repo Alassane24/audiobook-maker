@@ -33,3 +33,14 @@ samples/*.jpg
 Thumbs.db
 .DS_Store
 *.lnk
+
+# Venv freeze files (generated 2026-09-16 during the Cowork cleanup; the venv
+# patterns above end in / so they only match directories, not these files)
+*.frozen.txt
+*.pyvenv.cfg.backup
+
+# Tesseract training data (17MB, fetched not authored; see README for the download)
+tessdata/
+
+# Timing-backfill run logs
+backfill-timing*.log

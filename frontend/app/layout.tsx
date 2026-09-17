@@ -59,11 +59,32 @@ const themeScript = `
 })();
 `;
 
+// Marks the page as running on a landscape MONITOR (not the window shape) so
+// the wide desktop layout keys off the real screen. A Chrome app window that
+// is taller than it is wide would report orientation:portrait to CSS — using
+// the screen instead means a desktop app window still gets the desktop layout,
+// while a phone or a vertical/portrait monitor keeps the narrow column. Runs
+// pre-paint and re-checks when the window moves between monitors.
+const screenScript = `
+(function () {
+  function set() {
+    try {
+      var s = window.screen || {};
+      document.documentElement.classList.toggle("landscape-screen", (s.width || 0) >= (s.height || 0));
+    } catch (e) {}
+  }
+  set();
+  window.addEventListener("resize", set);
+  window.addEventListener("orientationchange", set);
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`theme-dark ${marcellus.variable} ${jost.variable} ${newsreader.variable}`} suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: screenScript }} />
         <div className="grain" aria-hidden="true" />
         <div className="container">{children}</div>
       </body>

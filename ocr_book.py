@@ -28,8 +28,11 @@ os.makedirs(IMG_DIR, exist_ok=True)
 
 def extract_images(epub_path, out_dir):
     z = zipfile.ZipFile(epub_path)
-    imgs = sorted(n for n in z.namelist()
-                  if re.search(r"\.(jpg|jpeg|png)$", n, re.I) and "images/" in n)
+    def natural_sort_key(s):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+    
+    imgs = sorted((n for n in z.namelist()
+                  if re.search(r"\.(jpg|jpeg|png)$", n, re.I) and "images/" in n), key=natural_sort_key)
     paths = []
     for n in imgs:
         fname = os.path.basename(n)
@@ -53,7 +56,7 @@ def ocr_one(path):
 HEADER_RE = re.compile(r"Re:\s*Zero kara Hajimeru", re.I)
 VOLUME_RE = re.compile(r"Web Novel Volume", re.I)
 CHAPTER_RE = re.compile(r"Arc\s*(\d+)\s*Chapter\s*(\d+)\s*[-–—=]+\s*(.*)", re.I)
-PAGENUM_RE = re.compile(r"^\d{1,4}$")
+PAGENUM_RE = re.compile(r"^(?:-?\s*(?:page\s*)?\d{1,4}\s*-?:?)$", re.I)
 FOOTNOTE_RE = re.compile(r"^\d{1,2}\s+[A-Z]")       # "2 Engrish flip...", bottom-of-page notes
 # footnote content signature (catches notes whose leading number OCR'd as garbage)
 FNCONTENT_RE = re.compile(r"Engrish flip|Means\b.*\boriginally\b", re.I)
@@ -83,13 +86,10 @@ def clean_page(raw, state):
         return []
 
     body = []
-    lines = [ln.rstrip() for ln in raw.splitlines()]
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
     pending_title = None
     in_footnotes = False        # once notes begin, the rest of the page is notes
-    for ln in lines:
-        s = ln.strip()
-        if not s:
-            continue
+    for i, s in enumerate(lines):
         if in_footnotes:
             continue
         # normalize the I/| OCR error and footnote markers
@@ -113,7 +113,8 @@ def clean_page(raw, state):
         if HEADER_RE.search(s) or VOLUME_RE.search(s):
             continue
         if PAGENUM_RE.match(s):
-            continue
+            if i == 0 or i == len(lines) - 1:
+                continue
         if FOOTNOTE_RE.match(s) or FNCONTENT_RE.search(s):
             in_footnotes = True       # drop this note and everything after it
             continue

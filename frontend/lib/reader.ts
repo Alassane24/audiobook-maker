@@ -250,12 +250,22 @@ export function pageForPosition(pages: Page[], chapter: number, char: number): n
 }
 
 // Estimate how many characters fit in a w×h box of reader text.
-// 17px Newsreader averages ~8.1px/char; line-height is 1.75. The 0.74
+// Newsreader averages ~0.476em/char (8.1px at 17px). fontPx and the
+// measured line height are passed in so the estimate tracks the actual
+// rendered size — the reader scales type up on large screens and in
+// full-screen, and a two-up spread halves each column's width. The 0.74
 // factor deliberately under-fills: sentences are placed whole, paragraph
 // gaps and ragged last lines eat space, and a clipped line at the page
 // bottom is worse than a slightly airy page.
-export function charsPerPageFor(width: number, height: number): number {
-  const cpl = Math.max(20, width / 8.1);
-  const lines = Math.max(6, height / (17 * 1.75));
+export function charsPerPageFor(
+  width: number,
+  height: number,
+  fontPx = 17,
+  lineHeightPx?: number,
+): number {
+  const avgChar = Math.max(4, fontPx * 0.476);
+  const lineH = lineHeightPx && lineHeightPx > 0 ? lineHeightPx : fontPx * 1.75;
+  const cpl = Math.max(20, width / avgChar);
+  const lines = Math.max(6, height / lineH);
   return Math.round(cpl * lines * 0.74);
 }

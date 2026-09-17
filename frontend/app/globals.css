@@ -132,6 +132,10 @@ body {
   padding: calc(44px + env(safe-area-inset-top)) 24px calc(90px + env(safe-area-inset-bottom));
 }
 
+/* Wide-desktop (landscape) layout + control scaling lives at the END of
+   this file — it overrides the base component rules below, and CSS media
+   queries add no specificity, so it has to come last in source order. */
+
 a { color: var(--primary); text-decoration: none; font-weight: 600; transition: color 0.2s; }
 a:hover { color: var(--accent); }
 
@@ -777,12 +781,19 @@ select option { background: var(--card); color: var(--text); }
   gap: 8px;
   margin-top: 18px;
   padding-top: 16px;
+  padding-bottom: 4px;
   border-top: 1px solid var(--border-faint);
   position: relative;
   z-index: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Hide scrollbar Firefox */
+}
+.view-toggle::-webkit-scrollbar {
+  display: none; /* Hide scrollbar Chrome/Safari */
 }
 .view-tab {
-  flex: 1;
+  flex: 1 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -861,6 +872,8 @@ select option { background: var(--card); color: var(--text); }
 .reader-page-art img {
   max-width: 100%;
   max-height: 100%;
+  min-width: 0;
+  min-height: 0;
   object-fit: contain;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -928,6 +941,104 @@ select option { background: var(--card); color: var(--text); }
   .reader-controls .btn-ghost { padding: 9px 10px; }
 }
 
+/* ---------------------------------------------------------- two-up spread */
+.reader-topbar-right { display: flex; align-items: center; gap: 12px; }
+.reader-fs-btn { padding: 7px 12px; font-size: 12px; }
+.reader-fs-btn svg { width: 15px; height: 15px; }
+
+/* One page, or two facing pages when there's width for it. A faint rule on
+   the left page is the spine. */
+.reader-spread { display: grid; grid-template-columns: 1fr; }
+.reader-spread.two { grid-template-columns: 1fr 1fr; column-gap: clamp(16px, 2vw, 40px); }
+.reader-spread.two .reader-page.left { border-right: 1px solid var(--border-faint); padding-right: clamp(20px, 1.6vw, 30px); }
+.reader-page-blank { height: clamp(360px, 64vh, 700px); }
+
+/* Roomier reading type once the column is wide enough to carry it. */
+@media (min-width: 1100px) {
+  .reader-page { font-size: 18.5px; padding: 22px 30px 10px; }
+}
+
+/* The full-screen entry sits beside the two view tabs but it's an action,
+   not a tab — it shouldn't stretch to a full third of the row. */
+.view-tab.fs-entry { flex: 0 1 auto; }
+
+/* ---------------------------------------------------------- immersive reader */
+.immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 50% -6%, var(--grad-1) 0%, transparent 55%),
+    radial-gradient(circle at 92% 8%, var(--grad-2) 0%, transparent 40%);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  /* Opacity-only fade — never a transform. A transform on a position:fixed
+     overlay both offsets it and turns it into a containing block for its
+     own fixed children, so the entrance must not translate. */
+  animation: immersiveIn 0.35s ease both;
+}
+@keyframes immersiveIn { from { opacity: 0; } to { opacity: 1; } }
+
+.immersive-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: calc(16px + env(safe-area-inset-top)) clamp(20px, 4vw, 56px) 14px;
+  border-bottom: 1px solid var(--border-faint);
+}
+.immersive-top .reader-chapter { font-size: 16px; }
+.immersive-top-right { display: flex; align-items: center; gap: 14px; }
+
+.immersive-stage {
+  min-height: 0;                 /* let the 1fr row clip instead of growing */
+  display: flex;
+  padding: clamp(10px, 2.2vh, 26px) clamp(20px, 4vw, 64px);
+}
+.immersive-stage .reader-spread { flex: 1; min-width: 0; }
+.immersive-stage .reader-page,
+.immersive-stage .reader-page-blank { height: 100%; }
+.immersive-stage .reader-page {
+  font-size: clamp(18px, 1.55vw, 23px);
+  line-height: 1.85;
+  padding: 4px clamp(18px, 3vw, 52px);
+  overflow: hidden;
+}
+.immersive-stage .reader-spread.two .reader-page.left { border-right: 1px solid var(--border); }
+
+.immersive-dock {
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  padding: 14px clamp(20px, 4vw, 56px) calc(16px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 -10px 30px -22px rgba(0, 0, 0, 0.6);
+}
+.immersive-dock .scrub-row { width: 100%; max-width: 1100px; margin: 0 auto; }
+.immersive-transport {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 3vw, 34px);
+}
+/* Page turns in the dock — round icon buttons flanking the audio transport. */
+.immersive-transport .page-arrow {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+}
+.immersive-transport .page-arrow:disabled { opacity: 0.4; cursor: default; }
+
+@media (max-width: 600px) {
+  .immersive-stage { padding: 8px 14px; }
+  .immersive-top { padding: calc(12px + env(safe-area-inset-top)) 16px 10px; }
+  .immersive-top-right .reader-resume { display: none; }
+}
+
 /* ---------------------------------------------------------- reveal motion */
 @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes iconIn { from { opacity: 0; transform: scale(0.6) rotate(-8deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
@@ -953,4 +1064,70 @@ select option { background: var(--card); color: var(--text); }
   .card { padding: 26px 20px; }
   .pills { flex-direction: column; }
   .transport { gap: 18px; }
+}
+
+/* ============================================================
+   Wide desktop. Gated on html.landscape-screen — a class set by JS from
+   the MONITOR orientation, NOT the window shape. This is the fix for the
+   desktop app launching "in phone view": a Chrome --app window that is
+   taller than it is wide reports orientation:portrait to CSS, so the old
+   (orientation: landscape) gate failed on a perfectly normal desktop
+   window. Keying off the screen instead, a desktop app window gets the
+   desktop layout at any window shape (down to the width gate), while a
+   phone or a vertical/portrait monitor (portrait screen → no class) keeps
+   the narrow vertical column. The class prefix also raises specificity, so
+   these reliably override the base rules above regardless of source order.
+   ============================================================ */
+@media (min-width: 980px) {
+  html.landscape-screen .container { max-width: min(1320px, 95vw); }
+  html.landscape-screen body { font-size: 17px; }
+
+  /* The upload page becomes a two-column studio so it actually uses the
+     width: the short Manuscript and Performance cards stack on the left,
+     the tall Narrator (seven voices) fills the right. */
+  html.landscape-screen .upload-form {
+    display: grid;
+    grid-template-columns: 1fr 1.02fr;
+    grid-template-rows: auto auto;
+    gap: 28px;
+    align-items: start;
+  }
+  html.landscape-screen .upload-form > section { margin: 0; }
+  html.landscape-screen .upload-form > section:nth-child(1) { grid-column: 1; grid-row: 1; }            /* Manuscript */
+  html.landscape-screen .upload-form > section:nth-child(2) { grid-column: 2; grid-row: 1 / span 2; }   /* Narrator   */
+  html.landscape-screen .upload-form > section:nth-child(3) { grid-column: 1; grid-row: 2; }            /* Performance */
+  html.landscape-screen .drop { padding: 60px 24px; font-size: 16px; }
+
+  /* Size the controls up for a desktop, not a phone blown up. */
+  html.landscape-screen .card { padding: 40px 44px; }
+  html.landscape-screen .voice-card { padding: 16px 18px; gap: 16px; }
+  html.landscape-screen .voice-name { font-size: 21px; }
+  html.landscape-screen .voice-desc { font-size: 13.5px; }
+  html.landscape-screen .roundel { width: 54px; height: 54px; }
+  html.landscape-screen .roundel svg { width: 22px; height: 22px; }
+  html.landscape-screen .pill { font-size: 16px; padding: 16px 10px; }
+  html.landscape-screen .btn-gold { padding: 20px; font-size: 15px; }
+  html.landscape-screen .slider-value { font-size: 18px; }
+  html.landscape-screen .reader-page { font-size: 19px; }
+
+  /* Player transport — the inline player only; the immersive dock keeps
+     its own sizing so full-screen stays exactly as it is. */
+  html.landscape-screen .player-shell { padding: 34px 34px 26px; }
+  html.landscape-screen .player-shell .transport { gap: 44px; margin-bottom: 22px; }
+  html.landscape-screen .player-shell .roundel-xl { width: 92px; height: 92px; }
+  html.landscape-screen .player-shell .roundel-xl svg { width: 34px; height: 34px; }
+  html.landscape-screen .player-shell .skip-btn { min-width: 62px; min-height: 62px; }
+  html.landscape-screen .player-shell .skip-btn svg { width: 46px; height: 46px; }
+  html.landscape-screen .player-shell .scrub-row { gap: 18px; }
+  html.landscape-screen .player-shell .scrub-row input[type="range"] { height: 6px; }
+  html.landscape-screen .player-shell .scrub-row input[type="range"]::-webkit-slider-thumb { width: 20px; height: 20px; }
+  html.landscape-screen .player-shell .scrub-row input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; }
+  html.landscape-screen .player-shell .time-readout { font-size: 14px; min-width: 58px; }
+  html.landscape-screen .player-shell .view-toggle { gap: 10px; }
+  html.landscape-screen .player-shell .view-tab { font-size: 14px; min-height: 52px; padding: 14px 12px; }
+  html.landscape-screen .player-shell .view-tab svg { width: 19px; height: 19px; }
+}
+
+@media (min-width: 1480px) {
+  html.landscape-screen .container { max-width: min(1560px, 92vw); }
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { fmtTime, type ChapterInfo } from "@/lib/api";
-import { BookOpenIcon, ListIcon, PauseIcon, PlayIcon, Skip15Back, Skip15Fwd } from "./icons";
+import { BookOpenIcon, BookmarkIcon, ExpandIcon, ListIcon, PauseIcon, PlayIcon, Skip15Back, Skip15Fwd, TrashIcon } from "./icons";
 import { Sunburst } from "./sunburst";
 import { ReadAlong } from "./read-along";
 
@@ -11,13 +11,42 @@ interface Props {
   chapters: ChapterInfo[];
 }
 
+type Bookmark = { time: number; label: string };
+
 export function DecoPlayer({ jobId, chapters }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [view, setView] = useState<"chapters" | "reader">("chapters");
+  const [view, setView] = useState<"chapters" | "bookmarks" | "reader">("chapters");
+  const [immersive, setImmersive] = useState(false);
+
+  const [savedTime, setSavedTime] = useState<number | null>(null);
+  const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
+
+  // Load progress and bookmarks on mount
+  useEffect(() => {
+    try {
+      const bmarks = localStorage.getItem(`ab_bookmarks_${jobId}`);
+      if (bmarks) setBookmarks(JSON.parse(bmarks));
+      const prog = localStorage.getItem(`ab_progress_${jobId}`);
+      if (prog) {
+        const t = parseFloat(prog);
+        // Only prompt to resume if they are at least 15 seconds in, to avoid annoying prompts
+        if (t > 15) {
+          setSavedTime(t);
+        }
+      }
+    } catch (e) {}
+  }, [jobId]);
+
+  // Save progress periodically as time updates
+  useEffect(() => {
+    if (time > 0) {
+      localStorage.setItem(`ab_progress_${jobId}`, time.toString());
+    }
+  }, [time, jobId]);
 
   // Active chapter follows the playhead: the last chapter whose start
   // we've passed. -1 before metadata loads.
@@ -51,8 +80,82 @@ export function DecoPlayer({ jobId, chapters }: Props) {
     const a = audioRef.current;
     if (!a) return;
     a.currentTime = seconds;
-    a.play();
+    a.play().catch(()=>{});
   }
+
+  // Scrub without forcing playback (the dock/scrub bar just repositions).
+  function scrubTo(seconds: number) {
+    const a = audioRef.current;
+    if (a) a.currentTime = seconds;
+  }
+
+  function resumeFromSave() {
+    if (savedTime !== null) {
+      seekTo(savedTime);
+      setSavedTime(null);
+    }
+  }
+
+  function dismissResume() {
+    setSavedTime(null);
+    // Overwrite with 0 so it doesn't prompt again if they refresh without playing
+    localStorage.setItem(`ab_progress_${jobId}`, "0");
+  }
+
+  function addBookmark() {
+    const label = window.prompt("Enter a name or note for this bookmark:", `Bookmark at ${fmtTime(time)}`);
+    if (!label) return; // user cancelled or empty
+    const newBm = [...bookmarks, { time, label }];
+    newBm.sort((a, b) => a.time - b.time);
+    setBookmarks(newBm);
+    localStorage.setItem(`ab_bookmarks_${jobId}`, JSON.stringify(newBm));
+    setView("bookmarks"); // jump to bookmarks view to show it
+  }
+
+  function deleteBookmark(idx: number, e: React.MouseEvent) {
+    e.stopPropagation();
+    const newBm = [...bookmarks];
+    newBm.splice(idx, 1);
+    setBookmarks(newBm);
+    localStorage.setItem(`ab_bookmarks_${jobId}`, JSON.stringify(newBm));
+  }
+
+  // Did our request actually put the browser into fullscreen? Only then does
+  // leaving fullscreen (Esc) mean "close the reader" — otherwise a browser
+  // that denies or instantly drops fullscreen would collapse the overlay.
+  const enteredFsRef = useRef(false);
+
+  // Full-screen reading mode. Switch to the reader, request the browser's
+  // fullscreen (so a Chrome app window goes borderless), and flip into the
+  // immersive overlay. The overlay is CSS-driven and fills the window on its
+  // own, so it works even if fullscreen is blocked.
+  function enterImmersive() {
+    setView("reader");
+    setImmersive(true);
+    const p = document.documentElement.requestFullscreen?.();
+    if (p && typeof p.then === "function") {
+      p.then(() => { enteredFsRef.current = true; }).catch(() => { enteredFsRef.current = false; });
+    }
+  }
+
+  function exitImmersive() {
+    enteredFsRef.current = false;
+    setImmersive(false);
+    if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  }
+
+  // Esc leaves browser fullscreen on its own — close the overlay to match,
+  // but only if we were the ones who entered fullscreen.
+  useEffect(() => {
+    function onFsChange() {
+      if (!document.fullscreenElement && enteredFsRef.current) {
+        enteredFsRef.current = false;
+        setImmersive(false);
+      }
+    }
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   const scrubFill = duration > 0 ? (time / duration) * 100 : 0;
 
@@ -70,6 +173,16 @@ export function DecoPlayer({ jobId, chapters }: Props) {
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         onEnded={() => setPlaying(false)}
       />
+
+      {savedTime !== null && (
+        <div className="banner" style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
+          <span>Resume where you left off ({fmtTime(savedTime)})?</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" className="btn-ghost" onClick={resumeFromSave}>Resume</button>
+            <button type="button" className="btn-ghost" onClick={dismissResume}>Dismiss</button>
+          </div>
+        </div>
+      )}
 
       <div className="player-shell">
         <div className="transport">
@@ -118,17 +231,84 @@ export function DecoPlayer({ jobId, chapters }: Props) {
           <button
             type="button"
             role="tab"
+            aria-selected={view === "bookmarks"}
+            className={`view-tab${view === "bookmarks" ? " sel" : ""}`}
+            onClick={() => setView("bookmarks")}
+          >
+            <BookmarkIcon /> Bookmarks
+          </button>
+          <button
+            type="button"
+            role="tab"
             aria-selected={view === "reader"}
             className={`view-tab${view === "reader" ? " sel" : ""}`}
             onClick={() => setView("reader")}
           >
             <BookOpenIcon /> Read along
           </button>
+          <button
+            type="button"
+            className="view-tab fs-entry"
+            onClick={enterImmersive}
+            aria-label="Open the full-screen reader"
+          >
+            <ExpandIcon /> Full screen
+          </button>
+        </div>
+        
+        {/* Bookmark Action Button within player shell */}
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
+          <button type="button" className="btn-ghost" onClick={addBookmark}>
+            <BookmarkIcon /> Bookmark this moment
+          </button>
         </div>
       </div>
 
       {view === "reader" ? (
-        <ReadAlong jobId={jobId} chapters={chapters} time={time} duration={duration} onSeek={seekTo} />
+        <ReadAlong
+          jobId={jobId}
+          chapters={chapters}
+          time={time}
+          duration={duration}
+          onSeek={seekTo}
+          immersive={immersive}
+          onEnterImmersive={enterImmersive}
+          onExitImmersive={exitImmersive}
+          playing={playing}
+          onTogglePlay={toggle}
+          onSkip={skip}
+          onScrub={scrubTo}
+        />
+      ) : view === "bookmarks" ? (
+        <div className="ch-list" role="list" aria-label="Bookmarks">
+          {bookmarks.length > 0 ? (
+            bookmarks.map((bm, i) => (
+              <div
+                key={i}
+                role="listitem"
+                className="ch-row"
+                onClick={() => seekTo(bm.time)}
+                style={{ justifyContent: "space-between" }}
+              >
+                <div style={{ display: "flex", gap: 16, alignItems: "baseline" }}>
+                  <span className="ch-time">{fmtTime(bm.time)}</span>
+                  <span className="ch-title">{bm.label}</span>
+                </div>
+                <button
+                  type="button"
+                  className="btn-ghost danger"
+                  onClick={(e) => deleteBookmark(i, e)}
+                  aria-label="Delete bookmark"
+                  style={{ minHeight: "auto", padding: "6px 10px" }}
+                >
+                  <TrashIcon />
+                </button>
+              </div>
+            ))
+          ) : (
+            <p className="empty-note" style={{ padding: 18, textAlign: "center" }}>No bookmarks yet.</p>
+          )}
+        </div>
       ) : (
         chapters.length > 0 && (
           <div className="ch-list" ref={listRef} role="list" aria-label="Chapters">

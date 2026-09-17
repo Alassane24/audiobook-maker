@@ -42,7 +42,9 @@ FFMPEG = find_ffmpeg()
 
 # ---------------------------------------------------------------- detect
 def detect_mode(epub_path):
-    """Return 'ocr' (image-based, needs OCR) or 'text' (extractable text)."""
+    """Return 'ocr' (image-based, needs OCR) or 'text' (extractable text) or 'pdf'."""
+    if epub_path.lower().endswith(".pdf"):
+        return "pdf"
     from bs4 import BeautifulSoup
     z = zipfile.ZipFile(epub_path)
     names = z.namelist()
@@ -68,7 +70,7 @@ def detect_mode(epub_path):
 HEADER_RE = re.compile(r"Re:\s*Zero kara Hajimeru", re.I)
 VOLUME_RE = re.compile(r"Web Novel Volume", re.I)
 CHAPTER_RE = re.compile(r"(?:(?:Arc\s*(?P<arc>\d+)\s*)?Chapter\s*(?P<ch>\d+|[A-Za-z]+)|(?P<prologue>Prologue|Epilogue))(?:\s*[-–—=:]+\s*(?P<title>.*))?", re.I)
-PAGENUM_RE = re.compile(r"^\d{1,4}:?$")
+PAGENUM_RE = re.compile(r"^(?:-?\s*(?:page\s*)?\d{1,4}\s*-?:?)$", re.I)
 # Speaker labels in these scans are little portrait icons; OCR mangles
 # them into digits ("222:" before a quote, regardless of who speaks).
 # Normalize to the web-novel's unknown-speaker form so the reader can
@@ -82,6 +84,23 @@ CREDIT_RE = re.compile(
     r"Manifesto|Table of Contents|Other Volumes", re.I)
 DOTLEADER_RE = re.compile(r"\.{5,}|\s\.\s\.\s\.")
 TITLE_BAD = re.compile(r"Light Novel|found in|Original|Translation|Part\b|Mysterious World", re.I)
+JAPANESE_RE = re.compile(r"[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\uFAFF\uFF66-\uFF9F]+")
+OCR_FIXES = [
+    (re.compile(r"\bT'm\b"), "I'm"),
+    (re.compile(r"\bT'd\b"), "I'd"),
+    (re.compile(r"\bT'll\b"), "I'll"),
+    (re.compile(r"\bT've\b"), "I've"),
+    (re.compile(r"\bTf\b"), "If"),
+    (re.compile(r"\bTt\b"), "It"),
+    (re.compile(r"\bTs\b"), "Is"),
+    (re.compile(r"\bTn\b"), "In"),
+    (re.compile(r"\bTnto\b"), "Into"),
+    (re.compile(r"\bTts\b"), "Its"),
+    (re.compile(r"\bTtself\b"), "Itself"),
+    (re.compile(r"\bTM\b"), "I'm"),
+    (re.compile(r"\bTF\b"), "If"),
+    (re.compile(r"(?<!-)\bT\b(?!-)"), "I"),
+]
 
 
 def _alpha_ratio(s):
@@ -90,16 +109,17 @@ def _alpha_ratio(s):
 
 def _ocr_one(path):
     img = ImageOps.invert(Image.open(path).convert("L"))
-    return os.path.basename(path), pytesseract.image_to_string(img, lang="eng")
+    tess_config = r'--tessdata-dir A:\Cowork\audiobooks\tessdata'
+    return os.path.basename(path), pytesseract.image_to_string(img, lang="eng+jpn", config=tess_config)
 
 
 def _clean_page(raw, state):
     if "Table of Contents" in raw or "Other Volumes" in raw or DOTLEADER_RE.search(raw):
         return []
     body, pending_title, in_footnotes = [], None, False
-    for ln in raw.splitlines():
-        s = ln.strip()
-        if not s or in_footnotes:
+    lines = [ln.strip() for ln in raw.splitlines() if ln.strip()]
+    for i, s in enumerate(lines):
+        if in_footnotes:
             continue
         s = unicodedata.normalize("NFKC", s.replace("|", "I").replace("*", ""))
         m = CHAPTER_RE.search(s)
@@ -117,14 +137,20 @@ def _clean_page(raw, state):
                 state["chapters"].append({"title": disp.strip(" -"), "lines": []})
                 pending_title = True
             continue
-        if HEADER_RE.search(s) or VOLUME_RE.search(s) or PAGENUM_RE.match(s):
+        if HEADER_RE.search(s) or VOLUME_RE.search(s):
             continue
+        if PAGENUM_RE.match(s):
+            if i == 0 or i == len(lines) - 1:
+                continue
         if FOOTNOTE_RE.match(s) or FNCONTENT_RE.search(s):
             in_footnotes = True
             continue
         if CREDIT_RE.search(s):
             pending_title = False
             continue
+        for pattern, replacement in OCR_FIXES:
+            s = pattern.sub(replacement, s)
+        s = JAPANESE_RE.sub(" [Japanese text] ", s)
         if _alpha_ratio(s) < 0.55 or len(re.sub(r"[^A-Za-z]", "", s)) < 3:
             continue
         s = BAD_SPEAKER_RE.sub("???: ", s)
@@ -163,10 +189,13 @@ def run_ocr(epub_path, work, progress):
     img_dir = os.path.join(work, "_images")
     os.makedirs(img_dir, exist_ok=True)
     z = zipfile.ZipFile(epub_path)
-    img_names = sorted(n for n in z.namelist()
-                       if re.search(r"\.(jpg|jpeg|png)$", n, re.I) and "images/" in n.lower())
+    def natural_sort_key(s):
+        return [int(text) if text.isdigit() else text.lower() for text in re.split(r'(\d+)', s)]
+    
+    img_names = sorted((n for n in z.namelist()
+                       if re.search(r"\.(jpg|jpeg|png)$", n, re.I) and "images/" in n.lower()), key=natural_sort_key)
     if not img_names:  # some epubs put images elsewhere
-        img_names = sorted(n for n in z.namelist() if re.search(r"\.(jpg|jpeg|png)$", n, re.I))
+        img_names = sorted((n for n in z.namelist() if re.search(r"\.(jpg|jpeg|png)$", n, re.I)), key=natural_sort_key)
     paths = []
     for n in img_names:
         dst = os.path.join(img_dir, os.path.basename(n))
@@ -209,6 +238,8 @@ def run_ocr(epub_path, work, progress):
                 pending_art.append(os.path.basename(path))
     chapters = [{"title": c["title"], "text": " ".join(c["lines"]), "images": c.get("images", [])}
                 for c in state["chapters"] if c["lines"]]
+    for c in chapters:
+        c["text"] = re.sub(r"(?:\[Japanese text\]\s*)+", "[Japanese text] ", c["text"])
     story = [c for c in chapters
              if re.match(r"(Arc\s*\d+\s*)?Chapter|Prologue|Epilogue", c["title"], re.I) and len(c["text"]) > 1500]
     if story:
@@ -227,6 +258,73 @@ def run_ocr(epub_path, work, progress):
                     {"char": anchor, "file": img["file"]} for img in c["images"])
     return story or chapters  # fall back to all if no Arc/Chapter scheme
 
+# ---------------------------------------------------------------- pdf path
+def run_pdf(pdf_path, work, progress):
+    import fitz
+    img_dir = os.path.join(work, "_images")
+    os.makedirs(img_dir, exist_ok=True)
+    doc = fitz.open(pdf_path)
+    total = len(doc)
+    paths = []
+    progress("ocr", 0.0, f"Extracting {total} PDF pages...")
+    for i in range(total):
+        page = doc.load_page(i)
+        # High resolution: 300 DPI for better OCR accuracy
+        pix = page.get_pixmap(dpi=300)
+        dst = os.path.join(img_dir, f"page_{i:04d}.png")
+        pix.save(dst)
+        paths.append(dst)
+        if i % 10 == 0:
+            progress("ocr", i / total * 0.1, f"Extracting PDF {i}/{total}")
+
+    results = {}
+    progress("ocr", 0.1, f"OCR 0/{total} pages")
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        for i, (name, txt) in enumerate(ex.map(_ocr_one, paths), 1):
+            results[name] = txt
+            if i % 10 == 0 or i == total:
+                progress("ocr", 0.1 + (i / total) * 0.9, f"OCR {i}/{total} pages")
+
+    ordered = [results[os.path.basename(p)] for p in paths]
+    state = {"key": None, "chapters": []}
+    pending_art = []
+    for path, raw in zip(paths, ordered):
+        body = _clean_page(raw, state)
+        if body:
+            if not state["chapters"]:
+                state["chapters"].append({"title": "Chapter 1", "lines": [], "images": []})
+            cur = state["chapters"][-1]
+            cur.setdefault("images", [])
+            if pending_art:
+                cur["images"].extend({"char": 0, "file": f} for f in pending_art)
+                pending_art = []
+            cur["lines"].extend(body)
+        elif len(raw.strip()) < 120 and _is_art(path):
+            if state["chapters"]:
+                cur = state["chapters"][-1]
+                cur.setdefault("images", []).append(
+                    {"char": _chapter_char_len(cur), "file": os.path.basename(path)})
+            else:
+                pending_art.append(os.path.basename(path))
+    chapters = [{"title": c["title"], "text": " ".join(c["lines"]), "images": c.get("images", [])}
+                for c in state["chapters"] if c["lines"]]
+    for c in chapters:
+        c["text"] = re.sub(r"(?:\[Japanese text\]\s*)+", "[Japanese text] ", c["text"])
+    story = [c for c in chapters
+             if re.match(r"(Arc\s*\d+\s*)?Chapter|Prologue|Epilogue", c["title"], re.I) and len(c["text"]) > 1500]
+    if story:
+        kept = {id(c) for c in story}
+        last_kept = None
+        for c in chapters:
+            if id(c) in kept:
+                last_kept = c
+            elif c.get("images"):
+                target = last_kept or story[0]
+                anchor = len(target["text"]) if last_kept else 0
+                target.setdefault("images", []).extend(
+                    {"char": anchor, "file": img["file"]} for img in c["images"])
+    return story or chapters
+
 # ---------------------------------------------------------------- text path
 def run_text(epub_path, work, progress):
     import posixpath
@@ -238,7 +336,11 @@ def run_text(epub_path, work, progress):
     img_dir = os.path.join(work, "_images")
     chapters = []
     pending_imgs = []   # art from image-only docs, carried to the next chapter
-    docs = list(book.get_items_of_type(ITEM_DOCUMENT))
+    docs = []
+    for item_id, _ in book.spine:
+        item = book.get_item_with_id(item_id)
+        if item and item.get_type() == ITEM_DOCUMENT:
+            docs.append(item)
     for i, item in enumerate(docs):
         soup = BeautifulSoup(item.get_content(), "html.parser")
         h = soup.find(["h1", "h2", "title"])
@@ -305,6 +407,9 @@ def run_text(epub_path, work, progress):
 
 # ---------------------------------------------------------------- cover
 def get_cover(epub_path, work, mode):
+    if mode == "pdf":
+        p = os.path.join(work, "_images", "page_0000.png")
+        return p if os.path.exists(p) else None
     if mode == "ocr":
         p = os.path.join(work, "_images", "0001.jpg")
         return p if os.path.exists(p) else None

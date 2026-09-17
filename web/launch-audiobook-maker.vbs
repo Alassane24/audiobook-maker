@@ -48,14 +48,22 @@ For Each c In candidates
   If fso.FileExists(c) Then chrome = c: Exit For
 Next
 
+' A plain "chrome --app=URL" hands the URL to the already-running Chrome and
+' ignores window flags, so --start-maximized would do nothing. Giving the app
+' its OWN user-data-dir makes it a separate Chrome instance where the flag
+' applies (and Chrome then remembers the maximised state); the clean profile
+' also sidesteps the stale-HTML cache that kept the old layout showing.
+Const APP_PROFILE = "A:\Cowork\.audire-chrome-profile"
+Dim FLAGS: FLAGS = " --start-maximized --no-first-run --no-default-browser-check --user-data-dir=""" & APP_PROFILE & """"
+
 If dry Then
   If chrome <> "" Then
-    WScript.Echo "DRY: would open chrome app window -> " & BASE
+    WScript.Echo "DRY: would open MAXIMISED chrome app window -> " & BASE
   Else
     WScript.Echo "DRY: chrome not found, would open default browser -> " & BASE
   End If
 ElseIf chrome <> "" Then
-  sh.Run """" & chrome & """ --app=" & BASE, 1, False
+  sh.Run """" & chrome & """ --app=" & BASE & FLAGS, 1, False
 Else
   sh.Run BASE, 1, False
 End If

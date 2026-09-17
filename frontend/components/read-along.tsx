@@ -1,18 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { fetchJobText, fmtTime, type ChapterInfo } from "@/lib/api";
 import {
   buildPages, charAtTime, charsPerPageFor, pageForPosition, timeAtChar,
   type BookText, type Page, type Para,
 } from "@/lib/reader";
+import {
+  ExpandIcon, MinimizeIcon, PauseIcon, PlayIcon, Skip15Back, Skip15Fwd,
+} from "./icons";
 
 interface Props {
   jobId: string;
   chapters: ChapterInfo[]; // audio chapter starts (seconds)
   time: number;            // current audio time
   duration: number;        // total audio duration
-  onSeek: (t: number) => void;
+  onSeek: (t: number) => void;     // play from a position (sentence tap)
+  immersive: boolean;
+  onEnterImmersive: () => void;
+  onExitImmersive: () => void;
+  playing: boolean;
+  onTogglePlay: () => void;
+  onSkip: (sec: number) => void;
+  onScrub: (t: number) => void;    // set position without forcing play
 }
 
 type LoadState =
@@ -21,18 +32,31 @@ type LoadState =
   | { kind: "error"; message: string }
   | { kind: "ready"; book: BookText };
 
-export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
+// Below this stage width the reader stays single-page; above it, two pages
+// sit side by side. Hysteresis (768 to enter, 700 to leave) stops a column
+// flip-flopping when the window hovers around the threshold.
+const TWO_UP_ENTER = 768;
+const TWO_UP_LEAVE = 700;
+
+export function ReadAlong({
+  jobId, chapters, time, duration, onSeek,
+  immersive, onEnterImmersive, onExitImmersive,
+  playing, onTogglePlay, onSkip, onScrub,
+}: Props) {
   const [load, setLoad] = useState<LoadState>({ kind: "loading" });
   const [attempt, setAttempt] = useState(0); // bump to refetch after an error
   const [pageIdx, setPageIdx] = useState(0);
   const [following, setFollowing] = useState(true);
   const [charsPerPage, setCharsPerPage] = useState(900);
-  // While following, a crossed illustration page is shown briefly before
-  // the reader settles on the live text page — like glancing at the art
-  // while the narration carries on.
+  const [cols, setCols] = useState<1 | 2>(1);
+  // While following in single-page mode, a crossed illustration page is
+  // shown briefly before the reader settles on the live text page — like
+  // glancing at the art while the narration carries on. (Two-up already
+  // shows the art in the spread, so no interlude there.)
   const [interlude, setInterlude] = useState<number | null>(null);
   const prevLivePage = useRef<number | null>(null);
-  const pageRef = useRef<HTMLDivElement>(null);
+  const pageRef = useRef<HTMLDivElement>(null);  // the left page — measured
+  const stageRef = useRef<HTMLDivElement>(null); // spread wrapper — sets cols
 
   // ---- fetch text (with 202 rebuild polling) --------------------------
   useEffect(() => {
@@ -56,20 +80,37 @@ export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
     return () => { alive = false; clearTimeout(timer); };
   }, [jobId, attempt]);
 
-  // ---- measure the page box -> chars per page -------------------------
+  // ---- measure: stage width -> columns, page box + type -> chars ------
   useEffect(() => {
     function measure() {
+      const stage = stageRef.current;
+      if (stage) {
+        const w = stage.getBoundingClientRect().width;
+        // Facing pages only make sense on a landscape MONITOR — keyed off
+        // the screen, not the window, so a tall app window on a wide desktop
+        // still gets two pages, while a phone or a vertical monitor (portrait
+        // screen) stays a single vertical page even in full-screen.
+        const sc = window.screen;
+        const landscape = !sc || (sc.width || 0) >= (sc.height || 0);
+        const wide = (cols: 1 | 2) => (cols === 2 ? w >= TWO_UP_LEAVE : w >= TWO_UP_ENTER);
+        // functional update reads the live value, so this never loops
+        setCols((prev) => (landscape && wide(prev) ? 2 : 1));
+      }
       const el = pageRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      if (rect.width > 0 && rect.height > 0) {
-        setCharsPerPage(charsPerPageFor(rect.width, rect.height));
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const cs = getComputedStyle(el);
+        const fontPx = parseFloat(cs.fontSize) || 17;
+        const lineH = parseFloat(cs.lineHeight) || fontPx * 1.75;
+        if (rect.width > 0 && rect.height > 0) {
+          setCharsPerPage(charsPerPageFor(rect.width, rect.height, fontPx, lineH));
+        }
       }
     }
     measure();
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
-  }, [load.kind]);
+  }, [load.kind, immersive, cols]);
 
   // ---- pagination ------------------------------------------------------
   const pages: Page[] = useMemo(() => {
@@ -93,16 +134,20 @@ export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
     return { ci, chStart, chDur, char, page: pageForPosition(pages, ci, char) };
   }, [load, pages, chapters, time, duration]);
 
-  // Auto page-turn while following.
-  useEffect(() => {
-    if (following && live && live.page !== pageIdx) setPageIdx(live.page);
-  }, [following, live, pageIdx]);
-
-  // Art interlude: when the live page steps forward past an illustration,
-  // show it for a few seconds. Only for small steps (reading flow), not
-  // big seeks.
+  // Auto page-turn while following: only move when the live page leaves the
+  // visible spread, so the narration can cross the left page onto the right
+  // before the book turns.
   useEffect(() => {
     if (!following || !live) return;
+    const within = live.page >= pageIdx && live.page <= pageIdx + cols - 1;
+    if (!within) setPageIdx(live.page);
+  }, [following, live, pageIdx, cols]);
+
+  // Art interlude (single-page only): when the live page steps forward past
+  // an illustration, show it for a few seconds. Only for small steps
+  // (reading flow), not big seeks.
+  useEffect(() => {
+    if (!following || !live || cols !== 1) return;
     const prev = prevLivePage.current;
     prevLivePage.current = live.page;
     if (prev === null || live.page === prev) return;
@@ -117,20 +162,21 @@ export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
         return () => clearTimeout(t);
       }
     }
-  }, [live, following, pages]);
+  }, [live, following, pages, cols]);
 
   // Clamp page index if repagination shrank the book.
   useEffect(() => {
     if (pages.length && pageIdx >= pages.length) setPageIdx(pages.length - 1);
   }, [pages.length, pageIdx]);
 
-  // Functional update so rapid taps each advance a page (two clicks in
-  // one render batch would otherwise both compute from the same index).
-  const turnBy = useCallback((delta: number) => {
+  // Turn by a whole spread (one page, or two in two-up). Functional update
+  // so rapid taps each advance — two clicks in one render batch would
+  // otherwise both compute from the same index.
+  const turnBy = useCallback((dir: number) => {
     setInterlude(null);
-    setPageIdx((p) => Math.max(0, Math.min(p + delta, pages.length - 1)));
+    setPageIdx((p) => Math.max(0, Math.min(p + dir * cols, pages.length - 1)));
     setFollowing(false);
-  }, [pages.length]);
+  }, [pages.length, cols]);
 
   const resume = useCallback(() => {
     setInterlude(null);
@@ -182,19 +228,30 @@ export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
     );
   }
 
-  const shownIdx = interlude ?? pageIdx;
-  const page = pages[shownIdx];
   const book = load.book;
-  if (!page) {
+  // In single-page mode an art interlude can momentarily replace the live
+  // page; two-up always shows the real left page.
+  const leftIdx = cols === 1 ? (interlude ?? pageIdx) : pageIdx;
+  const rightIdx = cols === 2 ? leftIdx + 1 : -1;
+  const leftPage = pages[leftIdx];
+  if (!leftPage) {
     return <div className="reader-panel"><p className="empty-note" style={{ padding: 18 }}>No text in this book.</p></div>;
   }
 
-  const chTitle = book.chapters[page.chapter]?.title ?? "";
+  const chTitle = book.chapters[leftPage.chapter]?.title ?? "";
   const showResume = !following && live !== null;
+  const atStart = leftIdx <= 0;
+  const atEnd = leftIdx + cols >= pages.length;
+  const pageLabel = (() => {
+    if (cols === 2 && rightIdx >= 0 && rightIdx < pages.length) {
+      return `${leftIdx + 1}–${rightIdx + 1} / ${pages.length}`;
+    }
+    return `${leftIdx + 1} / ${pages.length}`;
+  })();
 
-  function seekToSentence(start: number) {
-    if (load.kind !== "ready" || !live || page.kind !== "text") return;
-    const ci = page.chapter;
+  function seekToSentence(start: number, pg: Page) {
+    if (load.kind !== "ready" || pg.kind !== "text") return;
+    const ci = pg.chapter;
     const chStart = chapters[ci]?.start ?? 0;
     const chEnd = ci + 1 < chapters.length ? chapters[ci + 1].start : duration;
     const text = book.chapters[ci]?.text ?? "";
@@ -203,19 +260,19 @@ export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
     setFollowing(true);
   }
 
-  function renderPara(para: Para, pi: number) {
-    const liveHere = live !== null && page.chapter === live.ci && shownIdx === live.page;
+  function renderPara(para: Para, pi: number, pg: Page, pgIdx: number) {
+    const liveHere = live !== null && pgIdx === live.page;
     return (
       <p className="reader-para" key={pi}>
-        {para.sentences.map((s, si) => {
+        {para.sentences.map((s) => {
           const isLive = liveHere && live!.char >= s.start && live!.char < s.start + s.text.length;
-          const label = si === 0 && para.speakerLen ? s.text.slice(0, para.speakerLen) : null;
+          const label = para.speakerLen && para.sentences[0] === s ? s.text.slice(0, para.speakerLen) : null;
           const body = label ? s.text.slice(para.speakerLen) : s.text;
           return (
             <span
               key={s.start}
               className={`reader-sentence${isLive ? " live" : ""}`}
-              onClick={() => seekToSentence(s.start)}
+              onClick={() => seekToSentence(s.start, pg)}
               title="Play from here"
             >
               {label && <span className="reader-speaker">{label}</span>}
@@ -227,25 +284,116 @@ export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
     );
   }
 
+  // Render one page of the spread. `measured` attaches the sizing ref.
+  function renderPage(idx: number, measured: boolean, side: "left" | "right") {
+    const pg = pages[idx];
+    const cls = `reader-page${side === "left" ? " left" : " right"}`;
+    if (!pg) {
+      // Trailing blank when an odd page count leaves the right side empty.
+      return <div className={`${cls} reader-page-blank`} ref={measured ? pageRef : undefined} aria-hidden="true" />;
+    }
+    if (pg.kind === "image") {
+      return (
+        <div className={`${cls} reader-page-art`} ref={measured ? pageRef : undefined} key={`art-${idx}`}>
+          <img src={`/api/job/${jobId}/page-image/${pg.file}`} alt="Illustration from the book" loading="lazy" />
+        </div>
+      );
+    }
+    return (
+      <div className={cls} ref={measured ? pageRef : undefined} key={idx} aria-live="off">
+        {pg.paras.map((para, pi) => renderPara(para, pi, pg, idx))}
+      </div>
+    );
+  }
+
+  const spread = (
+    <div className={`reader-spread${cols === 2 ? " two" : ""}`} ref={stageRef}>
+      {renderPage(leftIdx, true, "left")}
+      {cols === 2 && renderPage(rightIdx, false, "right")}
+    </div>
+  );
+
+  const scrubPct = duration > 0 ? (time / duration) * 100 : 0;
+
+  // Audio transport reused in the immersive dock.
+  const transport = (
+    <div className="immersive-transport">
+      <button type="button" className="btn-ghost page-arrow" onClick={() => turnBy(-1)} disabled={atStart} aria-label="Previous page">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+      </button>
+      <button type="button" className="skip-btn" onClick={() => onSkip(-15)} aria-label="Back 15 seconds"><Skip15Back /></button>
+      <button type="button" className={`roundel roundel-xl${playing ? " playing" : ""}`} onClick={onTogglePlay} aria-label={playing ? "Pause" : "Play"}>
+        {playing ? <PauseIcon /> : <PlayIcon style={{ marginLeft: 4 }} />}
+      </button>
+      <button type="button" className="skip-btn" onClick={() => onSkip(15)} aria-label="Forward 15 seconds"><Skip15Fwd /></button>
+      <button type="button" className="btn-ghost page-arrow" onClick={() => turnBy(1)} disabled={atEnd} aria-label="Next page">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+      </button>
+    </div>
+  );
+
+  const scrubRow = (
+    <div className="scrub-row">
+      <span className="time-readout left">{fmtTime(time)}</span>
+      <input
+        type="range" min={0} max={100} step={0.1} value={scrubPct} aria-label="Seek"
+        style={{ "--fill": `${scrubPct}%` } as React.CSSProperties}
+        onChange={(e) => onScrub((parseFloat(e.target.value) / 100) * duration)}
+      />
+      <span className="time-readout right">{fmtTime(duration)}</span>
+    </div>
+  );
+
+  // ---- immersive full-screen layout -----------------------------------
+  // Portalled to <body> so the fixed overlay fills the viewport — the
+  // player sits inside a card whose entrance animation leaves a lingering
+  // transform, which would otherwise trap a position:fixed child.
+  if (immersive && typeof document !== "undefined") {
+    return createPortal(
+      <div className="immersive" role="region" aria-label="Full-screen reader">
+        <div className="immersive-top">
+          <span className="reader-chapter" title={chTitle}>{chTitle}</span>
+          <div className="immersive-top-right">
+            <span className="reader-pageno">{pageLabel}</span>
+            {showResume && (
+              <button type="button" className="reader-resume" onClick={resume}>
+                Return to narration · {fmtTime(time)}
+              </button>
+            )}
+            <button type="button" className="btn-ghost" onClick={onExitImmersive} aria-label="Exit full screen">
+              <MinimizeIcon /> Exit
+            </button>
+          </div>
+        </div>
+
+        <div className="immersive-stage">{spread}</div>
+
+        <div className="immersive-dock">
+          {scrubRow}
+          {transport}
+        </div>
+      </div>,
+      document.body,
+    );
+  }
+
+  // ---- inline panel ----------------------------------------------------
   return (
     <div className="reader-panel">
       <div className="reader-topbar">
         <span className="reader-chapter" title={chTitle}>{chTitle}</span>
-        <span className="reader-pageno">{shownIdx + 1} / {pages.length}</span>
+        <div className="reader-topbar-right">
+          <span className="reader-pageno">{pageLabel}</span>
+          <button type="button" className="btn-ghost reader-fs-btn" onClick={onEnterImmersive} aria-label="Full screen">
+            <ExpandIcon /> Full screen
+          </button>
+        </div>
       </div>
 
-      {page.kind === "image" ? (
-        <div className="reader-page reader-page-art" ref={pageRef} key={`art-${shownIdx}`}>
-          <img src={`/api/job/${jobId}/page-image/${page.file}`} alt="Illustration from the book" loading="lazy" />
-        </div>
-      ) : (
-        <div className="reader-page" ref={pageRef} key={shownIdx} aria-live="off">
-          {page.paras.map(renderPara)}
-        </div>
-      )}
+      {spread}
 
       <div className="reader-controls">
-        <button type="button" className="btn-ghost" onClick={() => turnBy(-1)} disabled={shownIdx === 0} aria-label="Previous page">
+        <button type="button" className="btn-ghost" onClick={() => turnBy(-1)} disabled={atStart} aria-label="Previous page">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
           Prev
         </button>
@@ -256,7 +404,7 @@ export function ReadAlong({ jobId, chapters, time, duration, onSeek }: Props) {
         ) : (
           <span className="reader-follow-note">{following ? "Following the narration" : ""}</span>
         )}
-        <button type="button" className="btn-ghost" onClick={() => turnBy(1)} disabled={shownIdx >= pages.length - 1} aria-label="Next page">
+        <button type="button" className="btn-ghost" onClick={() => turnBy(1)} disabled={atEnd} aria-label="Next page">
           Next
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
         </button>

@@ -119,7 +119,9 @@ def worker():
             job["mode"] = mode
             cb("detect", 0.05, f"Detected: {'image-based (OCR needed)' if mode=='ocr' else 'text-based'}")
 
-            if mode == "ocr":
+            if mode == "pdf":
+                chapters = pipeline.run_pdf(job["epub"], job["dir"], cb)
+            elif mode == "ocr":
                 chapters = pipeline.run_ocr(job["epub"], job["dir"], cb)
             else:
                 chapters = pipeline.run_text(job["epub"], job["dir"], cb)
@@ -268,7 +270,9 @@ def _build_text(jid):
             b["progress"] = round(max(0.0, min(frac, 1.0)), 3)
             b["message"] = message
 
-        if mode == "ocr":
+        if mode == "pdf":
+            chapters = pipeline.run_pdf(epub_path, j["dir"], cb)
+        elif mode == "ocr":
             chapters = pipeline.run_ocr(epub_path, j["dir"], cb)
         else:
             chapters = pipeline.run_text(epub_path, j["dir"], cb)
@@ -329,11 +333,14 @@ def upload(file: UploadFile = File(...), voice: str = Form("af_heart"), speed: s
     os.makedirs(job_dir, exist_ok=True)
 
     base = file.filename.rsplit(".", 1)[0]
+    ext = file.filename.rsplit(".", 1)[-1].lower()
     base = re.sub(r'[^A-Za-z0-9_\-\.\s]', '', base).strip()
     if not base:
         base = "audiobook"
 
-    epub_path = os.path.join(job_dir, "book.epub")
+    # Save as .pdf if uploaded a PDF, otherwise .epub
+    book_filename = "book.pdf" if ext == "pdf" else "book.epub"
+    epub_path = os.path.join(job_dir, book_filename)
     with open(epub_path, "wb") as f:
         f.write(file.file.read())
 
@@ -497,8 +504,18 @@ if os.path.isdir(FRONTEND_OUT):
     class FrontendFiles(StaticFiles):
         def file_response(self, full_path, stat_result, scope, status_code=200):
             resp = super().file_response(full_path, stat_result, scope, status_code)
-            if str(full_path).endswith(".txt"):
+            p = str(full_path).replace("\\", "/")
+            if p.endswith(".txt"):
                 resp.headers["content-type"] = "text/x-component"
+            # Caching: hashed build assets under _next/static are immutable
+            # (the filename changes when the content does), so cache them hard.
+            # index.html and the RSC .txt payloads must always revalidate, or a
+            # new build never loads on a normal refresh — that's what left the
+            # desktop app stuck on a stale "phone view" cached page.
+            if "/_next/static/" in p:
+                resp.headers["cache-control"] = "public, max-age=31536000, immutable"
+            elif p.endswith(".html") or p.endswith(".txt"):
+                resp.headers["cache-control"] = "no-cache"
             return resp
 
     # Mounted last so every /api, /upload, /stream… route above wins first.

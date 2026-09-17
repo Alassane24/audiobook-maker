@@ -30,8 +30,8 @@ export function UploadStudio() {
 
   function acceptFile(f: File | undefined) {
     if (!f) return;
-    if (!f.name.toLowerCase().endsWith(".epub")) {
-      setError("That doesn't look like an .epub file.");
+    if (!f.name.toLowerCase().endsWith(".epub") && !f.name.toLowerCase().endsWith(".pdf")) {
+      setError("Please upload an .epub or .pdf file.");
       return;
     }
     setError(null);
@@ -68,7 +68,7 @@ export function UploadStudio() {
   const speedFill = ((speed - 0.5) / 1.5) * 100;
 
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} className="upload-form">
       <section className="card ornate reveal" style={{ "--d": "0.2s" } as React.CSSProperties}>
         <h2 className="section-label"><span className="numeral">I</span>The Manuscript</h2>
         <label
@@ -90,14 +90,14 @@ export function UploadStudio() {
           ) : (
             <>
               <UploadIcon />
-              <span style={{ fontWeight: 600 }}>Choose an .epub file</span>
+              <span style={{ fontWeight: 600 }}>Choose an .epub or .pdf file</span>
               <span style={{ fontSize: 12, fontWeight: 400, opacity: 0.7 }}>or drag and drop it here</span>
             </>
           )}
           <input
             ref={fileInput}
             type="file"
-            accept=".epub"
+            accept=".epub,.pdf"
             style={{ display: "none" }}
             onChange={(e) => acceptFile(e.target.files?.[0])}
           />
