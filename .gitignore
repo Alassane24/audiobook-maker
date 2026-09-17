@@ -39,7 +39,7 @@ Thumbs.db
 *.frozen.txt
 *.pyvenv.cfg.backup
 
-# Tesseract training data (17MB, fetched not authored; see README for the download)
+# Tesseract training data (fetched, not authored — see README setup step 2)
 tessdata/
 
 # Timing-backfill run logs

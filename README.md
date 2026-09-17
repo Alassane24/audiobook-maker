@@ -24,7 +24,10 @@ Keeping production to a single Python process was the point. FastAPI serves the 
 This is a personal tool, tuned to one PC, so there is no installer. To stand it up elsewhere:
 
 1. Create a Python 3.11 virtual environment (PyTorch does not support newer yet). Install the CUDA build of PyTorch, then `fastapi`, `uvicorn`, `kokoro`, `soundfile`, `numpy`, `pytesseract`, and `Pillow`.
-2. Put `ffmpeg` and `Tesseract` on PATH.
+2. Put `ffmpeg` and `Tesseract` on PATH. Scanned books are OCR'd with `eng+jpn`, so the
+   Japanese language pack must be available. Either install it into your Tesseract's own
+   `tessdata`, or drop `eng.traineddata` and `jpn.traineddata` into a `tessdata/` folder at
+   the repo root (gitignored). `AUDIOBOOK_TESSDATA` overrides the location.
 3. Edit the host IP in `web/start-audiobook-server.bat`. It deliberately binds to one specific interface (a Tailscale address) instead of `0.0.0.0`, so the server is not reachable from shared Wi-Fi. Pick the address that fits your network.
 4. Run the bat file and open `http://<host>:8765`.
 

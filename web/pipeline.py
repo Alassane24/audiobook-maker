@@ -107,10 +107,17 @@ def _alpha_ratio(s):
     return sum(c.isalpha() or c.isspace() for c in s) / max(len(s), 1)
 
 
+# Tesseract language data. The repo does not ship tessdata/ (it is fetched, not
+# authored), so use a copy beside the repo when one is there and otherwise let
+# Tesseract fall back to its own install. AUDIOBOOK_TESSDATA overrides both.
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TESSDATA_DIR = os.environ.get("AUDIOBOOK_TESSDATA") or os.path.join(_REPO_ROOT, "tessdata")
+_TESS_CONFIG = f'--tessdata-dir "{TESSDATA_DIR}"' if os.path.isdir(TESSDATA_DIR) else ""
+
+
 def _ocr_one(path):
     img = ImageOps.invert(Image.open(path).convert("L"))
-    tess_config = r'--tessdata-dir A:\Cowork\audiobooks\tessdata'
-    return os.path.basename(path), pytesseract.image_to_string(img, lang="eng+jpn", config=tess_config)
+    return os.path.basename(path), pytesseract.image_to_string(img, lang="eng+jpn", config=_TESS_CONFIG)
 
 
 def _clean_page(raw, state):
